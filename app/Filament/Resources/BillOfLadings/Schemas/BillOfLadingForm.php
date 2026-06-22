@@ -17,6 +17,7 @@ class BillOfLadingForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Assignment')
                     ->schema([
@@ -43,7 +44,7 @@ class BillOfLadingForm
                             ->default(now())
                             ->required(),
                     ])
-                    ->columns(2),
+                    ->columns(1),
                 Section::make('Shipment Details')
                     ->schema([
                         Textarea::make('shipment_description')
@@ -77,7 +78,7 @@ class BillOfLadingForm
                             ->minValue(0)
                             ->step(0.01),
                     ])
-                    ->columns(2),
+                    ->columns(1),
                 Section::make('Current Progress')
                     ->description('To log a progress update without editing shipment details, use Post Progress Update on the BL view page.')
                     ->schema([
@@ -98,7 +99,7 @@ class BillOfLadingForm
                             ->helperText('Saved to update history when status, phase, or this note changes.')
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(1),
             ]);
     }
 }

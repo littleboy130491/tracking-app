@@ -174,4 +174,46 @@ class AdminBillOfLadingManagementTest extends TestCase
                 BillOfLading::query()->where('bl_number', 'BL-OTHER-RECORD')->get()
             );
     }
+
+    public function test_admin_can_filter_bl_records_by_status_phase_and_input_date(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $pending = BillOfLading::factory()->create([
+            'bl_number' => 'BL-FILTER-PENDING',
+            'status' => 'Pending',
+            'phase' => 'Input',
+            'input_date' => '2026-03-10',
+        ]);
+        $completed = BillOfLading::factory()->create([
+            'bl_number' => 'BL-FILTER-COMPLETED',
+            'status' => 'Completed',
+            'phase' => 'Closed',
+            'input_date' => '2026-06-15',
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ListBillOfLadings::class)
+            ->filterTable('status', 'Pending')
+            ->assertCanSeeTableRecords([$pending])
+            ->assertCanNotSeeTableRecords([$completed])
+            ->resetTableFilters()
+            ->filterTable('phase', 'Closed')
+            ->assertCanSeeTableRecords([$completed])
+            ->assertCanNotSeeTableRecords([$pending])
+            ->resetTableFilters()
+            ->filterTable('month', '3')
+            ->assertCanSeeTableRecords([$pending])
+            ->assertCanNotSeeTableRecords([$completed])
+            ->resetTableFilters()
+            ->filterTable('year', '2026')
+            ->assertCanSeeTableRecords([$pending, $completed])
+            ->resetTableFilters()
+            ->filterTable('input_date', [
+                'date' => '2026-06-15',
+            ])
+            ->assertCanSeeTableRecords([$completed])
+            ->assertCanNotSeeTableRecords([$pending]);
+    }
 }

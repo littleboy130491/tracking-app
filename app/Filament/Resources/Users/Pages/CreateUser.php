@@ -6,6 +6,7 @@ use App\Filament\Resources\Users\Concerns\SyncsCustomerDisplayName;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Enums\Width;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -15,6 +16,8 @@ class CreateUser extends CreateRecord
     use SyncsCustomerDisplayName;
 
     protected static string $resource = UserResource::class;
+
+    protected Width | string | null $maxContentWidth = Width::Full;
 
     /**
      * @param  array<string, mixed>  $data

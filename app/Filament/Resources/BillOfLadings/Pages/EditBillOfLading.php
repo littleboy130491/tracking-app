@@ -8,12 +8,15 @@ use App\Models\BillOfLading;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 class EditBillOfLading extends EditRecord
 {
     protected static string $resource = BillOfLadingResource::class;
+
+    protected Width | string | null $maxContentWidth = Width::Full;
 
     protected ?string $originalStatus = null;
 
