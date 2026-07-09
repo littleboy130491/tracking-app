@@ -2,54 +2,39 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\BillOfLadings\Pages\EditBillOfLading;
-use App\Filament\Resources\BillOfLadings\Pages\ViewBillOfLading;
 use App\Models\BillOfLading;
 use App\Models\User;
+use App\Services\BillOfLadingWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class BillOfLadingAdminHistoryTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_status_phase_or_note_update_creates_history_row(): void
+    public function test_admin_status_or_note_update_creates_history_row_without_overriding_workflow_phase(): void
     {
         $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
-            'status' => 'Pending',
-            'phase' => 'Input',
+            'status' => BillOfLading::STATUS_PENDING,
             'note' => 'Initial note.',
         ]);
+        $workflowPhase = $billOfLading->fresh()->phase;
 
-        $this->actingAs($admin);
-
-        Livewire::test(EditBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->fillForm([
-                'bl_number' => $billOfLading->bl_number,
-                'customer_id' => $billOfLading->customer_id,
-                'shipment_description' => $billOfLading->shipment_description,
-                'input_date' => $billOfLading->input_date->format('Y-m-d'),
-                'status' => 'In Progress',
-                'phase' => 'Transit',
-                'gps_tracking_url' => $billOfLading->gps_tracking_url,
-                'note' => 'Moved to transit.',
-            ])
-            ->call('save')
-            ->assertHasNoFormErrors();
+        $billOfLading->postProgressUpdate([
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+            'note' => 'Moved to transit.',
+        ], $admin->id);
 
         $billOfLading->refresh();
 
-        $this->assertSame('In Progress', $billOfLading->status);
-        $this->assertSame('Transit', $billOfLading->phase);
+        $this->assertSame(BillOfLading::STATUS_IN_PROGRESS, $billOfLading->status);
+        $this->assertSame($workflowPhase, $billOfLading->phase);
         $this->assertDatabaseHas('bill_of_lading_updates', [
             'bill_of_lading_id' => $billOfLading->id,
             'user_id' => $admin->id,
-            'status' => 'In Progress',
-            'phase' => 'Transit',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+            'phase' => $workflowPhase,
             'note' => 'Moved to transit.',
         ]);
     }
@@ -58,36 +43,18 @@ class BillOfLadingAdminHistoryTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
-            'status' => 'Pending',
-            'phase' => 'Input',
+            'status' => BillOfLading::STATUS_PENDING,
             'note' => 'First note.',
         ]);
 
-        $this->actingAs($admin);
-
-        Livewire::test(EditBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->fillForm($this->formData($billOfLading, [
-                'status' => 'In Progress',
-                'phase' => 'Customs',
-                'note' => 'Second note.',
-            ]))
-            ->call('save')
-            ->assertHasNoFormErrors();
-
-        $billOfLading->refresh();
-
-        Livewire::test(EditBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->fillForm($this->formData($billOfLading, [
-                'status' => 'In Progress',
-                'phase' => 'Transit',
-                'note' => 'Third note.',
-            ]))
-            ->call('save')
-            ->assertHasNoFormErrors();
+        $billOfLading->postProgressUpdate([
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+            'note' => 'Second note.',
+        ], $admin->id);
+        $billOfLading->postProgressUpdate([
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+            'note' => 'Third note.',
+        ], $admin->id);
 
         $notes = $billOfLading->fresh()->updates->pluck('note')->all();
 
@@ -103,41 +70,19 @@ class BillOfLadingAdminHistoryTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
-            'status' => 'Pending',
-            'phase' => 'Input',
+            'status' => BillOfLading::STATUS_PENDING,
             'note' => 'Original note.',
         ]);
 
-        $this->actingAs($admin);
-
-        Livewire::test(EditBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->fillForm($this->formData($billOfLading, [
-                'status' => 'In Progress',
-                'phase' => 'Customs',
-                'note' => 'Updated note.',
-            ]))
-            ->call('save')
-            ->assertHasNoFormErrors();
-
-        $this->assertDatabaseHas('bill_of_lading_updates', [
-            'bill_of_lading_id' => $billOfLading->id,
+        $billOfLading->postProgressUpdate([
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
             'note' => 'Updated note.',
-        ]);
+        ], $admin->id);
 
-        $billOfLading->refresh();
-
-        Livewire::test(EditBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->fillForm($this->formData($billOfLading, [
-                'status' => 'On Hold',
-                'phase' => 'Customs',
-                'note' => 'Latest note.',
-            ]))
-            ->call('save')
-            ->assertHasNoFormErrors();
+        $billOfLading->postProgressUpdate([
+            'status' => BillOfLading::STATUS_ON_HOLD,
+            'note' => 'Latest note.',
+        ], $admin->id);
 
         $this->assertDatabaseHas('bill_of_lading_updates', [
             'bill_of_lading_id' => $billOfLading->id,
@@ -150,60 +95,27 @@ class BillOfLadingAdminHistoryTest extends TestCase
         $this->assertSame('Latest note.', $billOfLading->fresh()->note);
     }
 
-    public function test_admin_can_post_progress_update_from_bl_view_page(): void
+    public function test_admin_can_advance_milestone_and_write_history(): void
     {
         $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
-            'status' => 'Pending',
-            'phase' => 'Input',
-            'note' => 'Initial note.',
+            'status' => BillOfLading::STATUS_PENDING,
         ]);
 
-        $this->actingAs($admin);
-
-        Livewire::test(ViewBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->callAction('postProgressUpdate', data: [
-                'status' => 'In Progress',
-                'phase' => 'Transit',
-                'note' => 'Posted from view page.',
-            ])
-            ->assertNotified();
+        app(BillOfLadingWorkflowService::class)->completeCurrentMilestone($billOfLading, [
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+            'note' => 'Documents received.',
+        ], $admin->id);
 
         $billOfLading->refresh();
 
-        $this->assertSame('In Progress', $billOfLading->status);
-        $this->assertSame('Transit', $billOfLading->phase);
-        $this->assertSame('Posted from view page.', $billOfLading->note);
+        $this->assertSame(BillOfLading::STATUS_IN_PROGRESS, $billOfLading->status);
+        $this->assertSame('draft_pib', $billOfLading->current_milestone_key);
         $this->assertDatabaseHas('bill_of_lading_updates', [
             'bill_of_lading_id' => $billOfLading->id,
             'user_id' => $admin->id,
-            'note' => 'Posted from view page.',
+            'milestone_key' => 'receive_docs',
+            'note' => 'Documents received.',
         ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $overrides
-     * @return array<string, mixed>
-     */
-    private function formData(BillOfLading $billOfLading, array $overrides = []): array
-    {
-        return array_merge([
-            'bl_number' => $billOfLading->bl_number,
-            'customer_id' => $billOfLading->customer_id,
-            'shipment_description' => $billOfLading->shipment_description,
-            'origin' => $billOfLading->origin,
-            'destination' => $billOfLading->destination,
-            'items_description' => $billOfLading->items_description,
-            'quantity' => $billOfLading->quantity,
-            'gross_weight_kg' => $billOfLading->gross_weight_kg,
-            'volume_cbm' => $billOfLading->volume_cbm,
-            'input_date' => $billOfLading->input_date->format('Y-m-d'),
-            'status' => $billOfLading->status,
-            'phase' => $billOfLading->phase,
-            'gps_tracking_url' => $billOfLading->gps_tracking_url,
-            'note' => $billOfLading->note,
-        ], $overrides);
     }
 }

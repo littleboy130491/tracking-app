@@ -12,7 +12,7 @@ class CreateBillOfLading extends CreateRecord
 {
     protected static string $resource = BillOfLadingResource::class;
 
-    protected Width | string | null $maxContentWidth = Width::Full;
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     protected function afterCreate(): void
     {
@@ -23,6 +23,9 @@ class CreateBillOfLading extends CreateRecord
             'user_id' => Auth::id(),
             'status' => $record->status,
             'phase' => $record->phase,
+            'milestone_key' => $record->current_milestone_key,
+            'customs_lane' => $record->customs_lane,
+            'visibility' => 'customer',
             'note' => $record->note ?: 'BL record created.',
         ]);
     }

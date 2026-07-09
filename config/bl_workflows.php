@@ -1,0 +1,342 @@
+<?php
+
+return [
+    'shipment_types' => [
+        'import' => 'Import',
+        'export' => 'Export',
+    ],
+
+    'customs_lanes' => [
+        'green' => 'Jalur Hijau (SPJH)',
+        'yellow' => 'Jalur Kuning (SPJK)',
+        'red' => 'Jalur Merah (SPJM)',
+    ],
+
+    'milestone_states' => [
+        'pending' => 'Pending',
+        'in_progress' => 'In Progress',
+        'completed' => 'Completed',
+        'skipped' => 'Skipped',
+    ],
+
+    'visibilities' => [
+        'customer' => 'Customer',
+        'admin_only' => 'Admin only',
+    ],
+
+    'retention_years' => 3,
+
+    'milestone_roles' => [
+        'receive_docs' => 'workflow_documents',
+        'draft_pib' => 'workflow_customs',
+        'transfer_pib' => 'workflow_customs',
+        'send_billing' => 'workflow_billing',
+        'pib_response' => 'workflow_customs',
+        'lane_notice' => 'workflow_customs',
+        'submit_docs' => 'workflow_customs',
+        'physical_inspection' => 'workflow_customs',
+        'sppb' => 'workflow_customs',
+        'draft_peb' => 'workflow_export',
+        'process_peb' => 'workflow_export',
+        'npe_response' => 'workflow_export',
+        'export_card' => 'workflow_export',
+        'stock_to_port' => 'workflow_export',
+        'process_do' => 'workflow_operations',
+        'do_release' => 'workflow_operations',
+        'loading_unloading' => 'workflow_operations',
+        'down_to_depot' => 'workflow_operations',
+        'loading_shipment' => 'workflow_operations',
+        'load_container' => 'workflow_operations',
+        'deliver_container' => 'workflow_delivery',
+        'finalize_docs' => 'workflow_delivery',
+        'exim_card' => 'workflow_delivery',
+        'switch_to_driver' => 'workflow_delivery',
+        'process_depot' => 'workflow_delivery',
+        'pickup_container' => 'workflow_delivery',
+        'on_the_way' => 'workflow_delivery',
+        'loading' => 'workflow_delivery',
+        'down_container_depot' => 'workflow_delivery',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Import pre-lane milestones
+    |--------------------------------------------------------------------------
+    */
+    'import_pre_lane' => [
+        [
+            'key' => 'receive_docs',
+            'label' => 'Penerimaan dokumen customer',
+            'customer_label' => 'Custom PIB',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'draft_pib',
+            'label' => 'Pembuatan draft PIB',
+            'customer_label' => 'Custom PIB',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'process_do',
+            'label' => 'Proses DO',
+            'customer_label' => 'Pick up DO',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'do_release',
+            'label' => 'DO Release',
+            'customer_label' => 'Pick up DO',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'transfer_pib',
+            'label' => 'Proses transfer PIB',
+            'customer_label' => 'Custom PIB',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'send_billing',
+            'label' => 'Pengiriman billing',
+            'customer_label' => 'Bayar billing',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'pib_response',
+            'label' => 'Proses respon PIB',
+            'customer_label' => 'Respon PIB',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+    ],
+
+    'import_lanes' => [
+        'green' => [
+            [
+                'key' => 'sppb',
+                'label' => 'SPPB',
+                'customer_label' => 'SPPB',
+                'allows_document' => true,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'deliver_container',
+                'label' => 'Pengiriman kontainer',
+                'customer_label' => 'Pengiriman container ke pabrik',
+                'allows_document' => false,
+                'customer_visible' => true,
+            ],
+        ],
+        'yellow' => [
+            [
+                'key' => 'lane_notice',
+                'label' => 'SPJK',
+                'customer_label' => 'SPJK',
+                'allows_document' => true,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'submit_docs',
+                'label' => 'Submit dokumen',
+                'customer_label' => 'Submit dokumen',
+                'allows_document' => true,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'sppb',
+                'label' => 'SPPB',
+                'customer_label' => 'SPPB',
+                'allows_document' => true,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'deliver_container',
+                'label' => 'Pengiriman kontainer',
+                'customer_label' => 'Pengiriman container ke pabrik',
+                'allows_document' => false,
+                'customer_visible' => true,
+            ],
+        ],
+        'red' => [
+            [
+                'key' => 'lane_notice',
+                'label' => 'SPJM',
+                'customer_label' => 'SPJM',
+                'allows_document' => true,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'submit_docs',
+                'label' => 'Submit dokumen',
+                'customer_label' => 'Submit dokumen',
+                'allows_document' => true,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'physical_inspection',
+                'label' => 'Periksa fisik',
+                'customer_label' => 'Periksa fisik',
+                'allows_document' => false,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'sppb',
+                'label' => 'SPPB',
+                'customer_label' => 'SPPB',
+                'allows_document' => true,
+                'customer_visible' => true,
+            ],
+            [
+                'key' => 'deliver_container',
+                'label' => 'Pengiriman kontainer',
+                'customer_label' => 'Pengiriman container ke pabrik',
+                'allows_document' => false,
+                'customer_visible' => true,
+            ],
+        ],
+    ],
+
+    'export' => [
+        [
+            'key' => 'receive_docs',
+            'label' => 'Penerimaan dokumen customer',
+            'customer_label' => 'Penerimaan dokumen',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'draft_peb',
+            'label' => 'Pembuatan draft PEB',
+            'customer_label' => 'Draft PEB',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'process_do',
+            'label' => 'Proses DO',
+            'customer_label' => 'DO Ekspor',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'loading_unloading',
+            'label' => 'Bongkar muat',
+            'customer_label' => 'Bongkar Muat',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'down_to_depot',
+            'label' => 'Down to depot',
+            'customer_label' => 'Down to Depot',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'loading_shipment',
+            'label' => 'Loading shipment',
+            'customer_label' => 'Loading to shipment',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'load_container',
+            'label' => 'Muat container',
+            'customer_label' => 'Muat Container',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'process_peb',
+            'label' => 'Proses PEB',
+            'customer_label' => 'Proses PEB',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'npe_response',
+            'label' => 'Respon NPE',
+            'customer_label' => 'Respon NPE',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'export_card',
+            'label' => 'Pembuatan export card',
+            'customer_label' => 'Create export card',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'stock_to_port',
+            'label' => 'Stocking container ke pelabuhan',
+            'customer_label' => 'Stocking container ke pelabuhan',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+    ],
+
+    'delivery' => [
+        [
+            'key' => 'finalize_docs',
+            'label' => 'Finalisasi dokumen',
+            'customer_label' => 'Final Document',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'exim_card',
+            'label' => 'Proses kartu exim',
+            'customer_label' => 'Process ekspor/import card',
+            'allows_document' => true,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'switch_to_driver',
+            'label' => 'Switch to driver',
+            'customer_label' => 'Switch to driver',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'process_depot',
+            'label' => 'Proses depot',
+            'customer_label' => 'Process depot',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'pickup_container',
+            'label' => 'Pengambilan container',
+            'customer_label' => 'Take container',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'on_the_way',
+            'label' => 'On the way shipment',
+            'customer_label' => 'On the way shipment',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'loading',
+            'label' => 'Loading',
+            'customer_label' => 'Loading',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+        [
+            'key' => 'down_container_depot',
+            'label' => 'Down container to depot',
+            'customer_label' => 'Down container to depot',
+            'allows_document' => false,
+            'customer_visible' => true,
+        ],
+    ],
+];

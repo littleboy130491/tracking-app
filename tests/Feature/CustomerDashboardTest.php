@@ -78,8 +78,8 @@ class CustomerDashboardTest extends TestCase
             ->get(route('customer.dashboard', ['q' => 'FOUND']))
             ->assertOk()
             ->assertSee('BL-FOUND')
-            ->assertSee('Search BL Number')
-            ->assertSee('Enter part or all of a BL number');
+            ->assertSee('Search BL / Container')
+            ->assertSee('Enter part or all of a BL number or container number');
 
         $this->actingAs($customer)
             ->get(route('customer.dashboard', ['q' => 'MISSING']))
@@ -101,30 +101,30 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('Signed in with customer@example.com');
     }
 
-    public function test_customer_can_filter_dashboard_by_status_phase_and_date(): void
+    public function test_customer_can_filter_dashboard_by_status_milestone_and_date(): void
     {
         $customer = User::factory()->customer()->create();
 
-        BillOfLading::factory()->create([
+        $match = BillOfLading::factory()->create([
             'customer_id' => $customer->id,
             'bl_number' => 'BL-MATCH',
             'status' => 'In Progress',
-            'phase' => 'Transit',
             'input_date' => '2026-06-15',
         ]);
+        $match->forceFill(['current_milestone_key' => 'process_do'])->saveQuietly();
 
-        BillOfLading::factory()->create([
+        $other = BillOfLading::factory()->create([
             'customer_id' => $customer->id,
             'bl_number' => 'BL-OTHER',
             'status' => 'Pending',
-            'phase' => 'Input',
             'input_date' => '2025-01-10',
         ]);
+        $other->forceFill(['current_milestone_key' => 'receive_docs'])->saveQuietly();
 
         $this->actingAs($customer)
             ->get(route('customer.dashboard', [
                 'status' => 'In Progress',
-                'phase' => 'Transit',
+                'milestone' => 'process_do',
                 'month' => '6',
                 'year' => '2026',
             ]))
@@ -173,14 +173,20 @@ class CustomerDashboardTest extends TestCase
             'shipment_description' => 'Machinery shipment to Singapore',
             'origin' => 'Jakarta Port, Indonesia',
             'destination' => 'Singapore Port, Singapore',
+            'port_of_loading' => 'Jakarta Port, Indonesia',
+            'port_of_discharge' => 'Singapore Port, Singapore',
             'items_description' => 'CNC machinery parts, 12 crates',
+            'goods_description' => 'CNC machinery parts, 12 crates',
             'quantity' => '12 crates',
+            'package_count' => '12 crates',
             'gross_weight_kg' => 3200.50,
             'volume_cbm' => 14.20,
+            'measurement_cbm' => 14.20,
             'status' => 'In Progress',
-            'phase' => 'Transit',
             'note' => 'Currently in transit.',
+            'customer_note' => 'Currently in transit.',
         ]);
+        $billOfLading->forceFill(['phase' => 'Transit'])->saveQuietly();
 
         $billOfLading->updates()->create([
             'user_id' => User::factory()->admin()->create()->id,
@@ -199,10 +205,12 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('3,200.50 kg')
             ->assertSee('14.20 CBM')
             ->assertSee('In Progress')
-            ->assertSee('Transit')
             ->assertSee('Currently in transit.')
-            ->assertSee('Update History')
-            ->assertSee('Initial history entry.');
+            ->assertSee('Update history')
+            ->assertSee('Initial history entry.')
+            ->assertSee('Progress')
+            ->assertSee('Containers')
+            ->assertSee('Current status');
     }
 
     public function test_customer_pages_include_mobile_viewport_layout(): void

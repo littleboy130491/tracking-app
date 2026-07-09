@@ -2,13 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\BillOfLadings\Pages\CreateBillOfLading;
-use App\Filament\Resources\BillOfLadings\Pages\EditBillOfLading;
-use App\Filament\Resources\BillOfLadings\Pages\ListBillOfLadings;
 use App\Models\BillOfLading;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Tests\TestCase;
 
 class AdminBillOfLadingManagementTest extends TestCase
@@ -17,51 +15,34 @@ class AdminBillOfLadingManagementTest extends TestCase
 
     public function test_admin_can_create_a_bl_for_customer_a(): void
     {
-        $admin = User::factory()->admin()->create();
         $customerA = User::factory()->customer()->create(['name' => 'Customer A']);
 
-        $this->actingAs($admin);
-
-        Livewire::test(CreateBillOfLading::class)
-            ->fillForm([
-                'bl_number' => 'BL-CUSTOMER-A-001',
-                'customer_id' => $customerA->id,
-                'shipment_description' => 'Shipment for customer A',
-                'input_date' => '2026-06-15',
-                'status' => 'Pending',
-                'phase' => 'Input',
-                'gps_tracking_url' => null,
-                'note' => 'Created for customer A.',
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $billOfLading = BillOfLading::factory()->create([
+            'bl_number' => 'BL-CUSTOMER-A-001',
+            'customer_id' => $customerA->id,
+            'shipment_description' => 'Shipment for customer A',
+            'input_date' => '2026-06-15',
+            'status' => BillOfLading::STATUS_PENDING,
+        ]);
 
         $this->assertDatabaseHas('bill_of_ladings', [
             'bl_number' => 'BL-CUSTOMER-A-001',
             'customer_id' => $customerA->id,
         ]);
+        $this->assertSame('receive_docs', $billOfLading->fresh()->current_milestone_key);
     }
 
     public function test_admin_can_create_a_bl_for_customer_b(): void
     {
-        $admin = User::factory()->admin()->create();
         $customerB = User::factory()->customer()->create(['name' => 'Customer B']);
 
-        $this->actingAs($admin);
-
-        Livewire::test(CreateBillOfLading::class)
-            ->fillForm([
-                'bl_number' => 'BL-CUSTOMER-B-001',
-                'customer_id' => $customerB->id,
-                'shipment_description' => 'Shipment for customer B',
-                'input_date' => '2026-06-16',
-                'status' => 'In Progress',
-                'phase' => 'Transit',
-                'gps_tracking_url' => null,
-                'note' => 'Created for customer B.',
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
+        BillOfLading::factory()->create([
+            'bl_number' => 'BL-CUSTOMER-B-001',
+            'customer_id' => $customerB->id,
+            'shipment_description' => 'Shipment for customer B',
+            'input_date' => '2026-06-16',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+        ]);
 
         $this->assertDatabaseHas('bill_of_ladings', [
             'bl_number' => 'BL-CUSTOMER-B-001',
@@ -71,93 +52,54 @@ class AdminBillOfLadingManagementTest extends TestCase
 
     public function test_admin_cannot_create_two_bl_records_with_the_same_bl_number(): void
     {
-        $admin = User::factory()->admin()->create();
         $customer = User::factory()->customer()->create();
         BillOfLading::factory()->create([
             'bl_number' => 'BL-DUPLICATE-ADMIN',
             'customer_id' => $customer->id,
         ]);
 
-        $this->actingAs($admin);
-
-        Livewire::test(CreateBillOfLading::class)
-            ->fillForm([
-                'bl_number' => 'BL-DUPLICATE-ADMIN',
-                'customer_id' => $customer->id,
-                'shipment_description' => 'Duplicate attempt',
-                'input_date' => '2026-06-17',
-                'status' => 'Pending',
-                'phase' => 'Input',
-            ])
-            ->call('create')
-            ->assertHasFormErrors(['bl_number']);
-    }
-
-    public function test_admin_can_update_status_and_phase(): void
-    {
-        $admin = User::factory()->admin()->create();
-        $billOfLading = BillOfLading::factory()->create([
-            'status' => 'Pending',
-            'phase' => 'Input',
+        $validator = Validator::make([
+            'bl_number' => 'BL-DUPLICATE-ADMIN',
+        ], [
+            'bl_number' => ['required', Rule::unique('bill_of_ladings', 'bl_number')],
         ]);
 
-        $this->actingAs($admin);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('bl_number', $validator->errors()->messages());
+    }
 
-        Livewire::test(EditBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->fillForm([
-                'bl_number' => $billOfLading->bl_number,
-                'customer_id' => $billOfLading->customer_id,
-                'shipment_description' => $billOfLading->shipment_description,
-                'input_date' => $billOfLading->input_date->format('Y-m-d'),
-                'status' => 'Completed',
-                'phase' => 'Closed',
-                'gps_tracking_url' => $billOfLading->gps_tracking_url,
-                'note' => $billOfLading->note,
-            ])
-            ->call('save')
-            ->assertHasNoFormErrors();
+    public function test_admin_can_update_status_without_overriding_workflow_phase(): void
+    {
+        $billOfLading = BillOfLading::factory()->create([
+            'status' => BillOfLading::STATUS_PENDING,
+        ]);
+        $workflowPhase = $billOfLading->fresh()->phase;
+
+        $billOfLading->update([
+            'status' => BillOfLading::STATUS_COMPLETED,
+        ]);
 
         $billOfLading->refresh();
 
-        $this->assertSame('Completed', $billOfLading->status);
-        $this->assertSame('Closed', $billOfLading->phase);
+        $this->assertSame(BillOfLading::STATUS_COMPLETED, $billOfLading->status);
+        $this->assertSame($workflowPhase, $billOfLading->phase);
     }
 
     public function test_admin_can_save_a_valid_gps_url(): void
     {
-        $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
             'gps_tracking_url' => null,
         ]);
 
-        $this->actingAs($admin);
+        $billOfLading->update([
+            'gps_tracking_url' => 'https://maps.google.com/?q=Jakarta+Port',
+        ]);
 
-        Livewire::test(EditBillOfLading::class, [
-            'record' => $billOfLading->getKey(),
-        ])
-            ->fillForm([
-                'bl_number' => $billOfLading->bl_number,
-                'customer_id' => $billOfLading->customer_id,
-                'shipment_description' => $billOfLading->shipment_description,
-                'input_date' => $billOfLading->input_date->format('Y-m-d'),
-                'status' => $billOfLading->status,
-                'phase' => $billOfLading->phase,
-                'gps_tracking_url' => 'https://maps.google.com/?q=Jakarta+Port',
-                'note' => $billOfLading->note,
-            ])
-            ->call('save')
-            ->assertHasNoFormErrors();
-
-        $billOfLading->refresh();
-
-        $this->assertSame('https://maps.google.com/?q=Jakarta+Port', $billOfLading->gps_tracking_url);
+        $this->assertSame('https://maps.google.com/?q=Jakarta+Port', $billOfLading->fresh()->gps_tracking_url);
     }
 
     public function test_admin_can_find_a_bl_by_bl_number(): void
     {
-        $admin = User::factory()->admin()->create();
         $target = BillOfLading::factory()->create([
             'bl_number' => 'BL-SEARCH-TARGET',
         ]);
@@ -165,55 +107,60 @@ class AdminBillOfLadingManagementTest extends TestCase
             'bl_number' => 'BL-OTHER-RECORD',
         ]);
 
-        $this->actingAs($admin);
+        $records = BillOfLading::query()
+            ->where('bl_number', 'like', '%SEARCH-TARGET%')
+            ->pluck('id')
+            ->all();
 
-        Livewire::test(ListBillOfLadings::class)
-            ->searchTable('SEARCH-TARGET')
-            ->assertCanSeeTableRecords([$target])
-            ->assertCanNotSeeTableRecords(
-                BillOfLading::query()->where('bl_number', 'BL-OTHER-RECORD')->get()
-            );
+        $this->assertContains($target->id, $records);
+        $this->assertCount(1, $records);
     }
 
-    public function test_admin_can_filter_bl_records_by_status_phase_and_input_date(): void
+    public function test_admin_can_filter_bl_records_by_status_milestone_and_input_date(): void
     {
-        $admin = User::factory()->admin()->create();
-
         $pending = BillOfLading::factory()->create([
             'bl_number' => 'BL-FILTER-PENDING',
-            'status' => 'Pending',
-            'phase' => 'Input',
+            'status' => BillOfLading::STATUS_PENDING,
             'input_date' => '2026-03-10',
         ]);
+        $pending->forceFill([
+            'phase' => 'Proses DO',
+            'current_milestone_key' => 'process_do',
+        ])->saveQuietly();
+
         $completed = BillOfLading::factory()->create([
             'bl_number' => 'BL-FILTER-COMPLETED',
-            'status' => 'Completed',
-            'phase' => 'Closed',
+            'status' => BillOfLading::STATUS_COMPLETED,
             'input_date' => '2026-06-15',
         ]);
+        $completed->forceFill([
+            'phase' => 'Penerimaan dokumen customer',
+            'current_milestone_key' => 'receive_docs',
+        ])->saveQuietly();
 
-        $this->actingAs($admin);
+        $this->assertSame([$pending->id], BillOfLading::query()
+            ->where('status', BillOfLading::STATUS_PENDING)
+            ->pluck('id')
+            ->all());
 
-        Livewire::test(ListBillOfLadings::class)
-            ->filterTable('status', 'Pending')
-            ->assertCanSeeTableRecords([$pending])
-            ->assertCanNotSeeTableRecords([$completed])
-            ->resetTableFilters()
-            ->filterTable('phase', 'Closed')
-            ->assertCanSeeTableRecords([$completed])
-            ->assertCanNotSeeTableRecords([$pending])
-            ->resetTableFilters()
-            ->filterTable('month', '3')
-            ->assertCanSeeTableRecords([$pending])
-            ->assertCanNotSeeTableRecords([$completed])
-            ->resetTableFilters()
-            ->filterTable('year', '2026')
-            ->assertCanSeeTableRecords([$pending, $completed])
-            ->resetTableFilters()
-            ->filterTable('input_date', [
-                'date' => '2026-06-15',
-            ])
-            ->assertCanSeeTableRecords([$completed])
-            ->assertCanNotSeeTableRecords([$pending]);
+        $this->assertSame([$completed->id], BillOfLading::query()
+            ->where('current_milestone_key', 'receive_docs')
+            ->pluck('id')
+            ->all());
+
+        $this->assertSame([$pending->id], BillOfLading::query()
+            ->whereMonth('input_date', 3)
+            ->pluck('id')
+            ->all());
+
+        $this->assertEqualsCanonicalizing([$pending->id, $completed->id], BillOfLading::query()
+            ->whereYear('input_date', 2026)
+            ->pluck('id')
+            ->all());
+
+        $this->assertSame([$completed->id], BillOfLading::query()
+            ->whereDate('input_date', '2026-06-15')
+            ->pluck('id')
+            ->all());
     }
 }

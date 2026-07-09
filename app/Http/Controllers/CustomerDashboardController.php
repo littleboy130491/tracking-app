@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\BillOfLading;
+use App\Models\BillOfLadingUpdate;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -26,7 +28,8 @@ class CustomerDashboardController extends Controller
         $filters = [
             'q' => trim((string) $request->query('q')),
             'status' => (string) $request->query('status', ''),
-            'phase' => (string) $request->query('phase', ''),
+            'milestone' => (string) $request->query('milestone', ''),
+            'shipment_type' => (string) $request->query('shipment_type', ''),
             'month' => (string) $request->query('month', ''),
             'year' => (string) $request->query('year', ''),
             'per_page' => (string) $perPage,
@@ -34,14 +37,25 @@ class CustomerDashboardController extends Controller
 
         $billOfLadings = BillOfLading::query()
             ->whereBelongsTo($customer, 'customer')
-            ->when($filters['q'] !== '', fn ($query) => $query->where('bl_number', 'like', "%{$filters['q']}%"))
+            ->when($filters['q'] !== '', function ($query) use ($filters) {
+                $query->where(function ($inner) use ($filters): void {
+                    $inner->where('bl_number', 'like', "%{$filters['q']}%")
+                        ->orWhereHas('containers', fn ($containerQuery) => $containerQuery
+                            ->where('container_number', 'like', "%{$filters['q']}%"));
+                });
+            })
             ->when(
                 $filters['status'] !== '' && in_array($filters['status'], BillOfLading::STATUSES, true),
                 fn ($query) => $query->where('status', $filters['status']),
             )
             ->when(
-                $filters['phase'] !== '' && in_array($filters['phase'], BillOfLading::PHASES, true),
-                fn ($query) => $query->where('phase', $filters['phase']),
+                $filters['milestone'] !== '' && array_key_exists($filters['milestone'], BillOfLading::milestoneOptions()),
+                fn ($query) => $query->where('current_milestone_key', $filters['milestone']),
+            )
+            ->when(
+                $filters['shipment_type'] !== ''
+                    && array_key_exists($filters['shipment_type'], config('bl_workflows.shipment_types', [])),
+                fn ($query) => $query->where('shipment_type', $filters['shipment_type']),
             )
             ->when(
                 $filters['month'] !== ''
@@ -75,7 +89,8 @@ class CustomerDashboardController extends Controller
             'perPageOptions' => self::PER_PAGE_OPTIONS,
             'hasBlSearch' => $filters['q'] !== '',
             'hasListingFilters' => $filters['status'] !== ''
-                || $filters['phase'] !== ''
+                || $filters['milestone'] !== ''
+                || $filters['shipment_type'] !== ''
                 || $filters['month'] !== ''
                 || $filters['year'] !== '',
         ]);
@@ -89,9 +104,69 @@ class CustomerDashboardController extends Controller
 
         abort_unless($billOfLading->customer_id === Auth::id(), 404);
 
-        return view('customer.bill-of-ladings.show', [
-            'billOfLading' => $billOfLading->load(['customer', 'updates.user']),
+        $billOfLading->load([
+            'customer',
+            'containers',
+            'milestoneStates',
+            'updates' => fn ($query) => $query
+                ->where(fn ($inner) => $inner
+                    ->whereNull('visibility')
+                    ->orWhere('visibility', BillOfLadingUpdate::VISIBILITY_CUSTOMER))
+                ->with('user'),
         ]);
+
+        return view('customer.bill-of-ladings.show', [
+            'billOfLading' => $billOfLading,
+            'timelineNodes' => $this->customerTimelineNodes($billOfLading),
+            'laneClass' => match ($billOfLading->customs_lane) {
+                'green' => 'lane-green',
+                'yellow' => 'lane-yellow',
+                'red' => 'lane-red',
+                default => 'lane-neutral',
+            },
+        ]);
+    }
+
+    /**
+     * @return Collection<int, array{label: string, state: string}>
+     */
+    private function customerTimelineNodes(BillOfLading $billOfLading): Collection
+    {
+        return $billOfLading->milestoneStates
+            ->where('customer_visible', true)
+            ->values()
+            ->reduce(function ($nodes, $milestone) {
+                $label = $milestone->displayLabel(true);
+                $lastIndex = $nodes->count() - 1;
+                $last = $nodes->get($lastIndex);
+
+                if ($last && $last['label'] === $label) {
+                    $last['state'] = $this->mergeTimelineState($last['state'], $milestone->state);
+                    $nodes->put($lastIndex, $last);
+
+                    return $nodes;
+                }
+
+                $nodes->push([
+                    'label' => $label,
+                    'state' => $milestone->state,
+                ]);
+
+                return $nodes;
+            }, collect());
+    }
+
+    private function mergeTimelineState(string $existing, string $incoming): string
+    {
+        if ($existing === 'in_progress' || $incoming === 'in_progress') {
+            return 'in_progress';
+        }
+
+        if ($existing === 'pending' || $incoming === 'pending') {
+            return 'pending';
+        }
+
+        return $existing;
     }
 
     private function guardCustomer(): ?RedirectResponse

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\BillOfLading;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class BillOfLadingPolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:BillOfLading');
@@ -34,12 +34,13 @@ class BillOfLadingPolicy
 
     public function delete(AuthUser $authUser, BillOfLading $billOfLading): bool
     {
-        return $authUser->can('Delete:BillOfLading');
+        return $authUser->can('Delete:BillOfLading')
+            && $billOfLading->canBeDeletedAfterRetention();
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:BillOfLading');
+        return false;
     }
 
     public function restore(AuthUser $authUser, BillOfLading $billOfLading): bool
@@ -49,12 +50,13 @@ class BillOfLadingPolicy
 
     public function forceDelete(AuthUser $authUser, BillOfLading $billOfLading): bool
     {
-        return $authUser->can('ForceDelete:BillOfLading');
+        return $authUser->can('ForceDelete:BillOfLading')
+            && $billOfLading->canBeDeletedAfterRetention();
     }
 
     public function forceDeleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('ForceDeleteAny:BillOfLading');
+        return false;
     }
 
     public function restoreAny(AuthUser $authUser): bool
@@ -71,5 +73,4 @@ class BillOfLadingPolicy
     {
         return $authUser->can('Reorder:BillOfLading');
     }
-
 }

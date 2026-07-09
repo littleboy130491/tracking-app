@@ -4,8 +4,6 @@ namespace App\Filament\Resources\BillOfLadings\Tables;
 
 use App\Models\BillOfLading;
 use App\Models\User;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
@@ -32,24 +30,42 @@ class BillOfLadingsTable
                     ->label('Customer')
                     ->searchable()
                     ->sortable()
-                    ->placeholder(fn ($record): string => $record->customer?->name ?? 'Not provided'),
-                TextColumn::make('origin')
-                    ->label('Origin')
+                    ->placeholder(fn ($record): string => $record->customer?->name ?? '-'),
+                TextColumn::make('shipment_type')
+                    ->label('Type')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipment_types.{$state}", $state ?? '-'))
+                    ->sortable(),
+                TextColumn::make('carrier_name')
+                    ->label('Carrier')
+                    ->toggleable()
+                    ->searchable()
+                    ->placeholder('-'),
+                TextColumn::make('port_of_loading')
+                    ->label('POL')
                     ->searchable()
                     ->sortable()
                     ->toggleable()
-                    ->placeholder('Not provided'),
-                TextColumn::make('destination')
-                    ->label('Destination')
+                    ->placeholder(fn ($record): string => $record->origin ?: '-'),
+                TextColumn::make('port_of_discharge')
+                    ->label('POD')
                     ->searchable()
                     ->sortable()
-                    ->placeholder('Not provided'),
+                    ->placeholder(fn ($record): string => $record->destination ?: '-'),
                 TextColumn::make('status')
                     ->badge()
                     ->sortable(),
                 TextColumn::make('phase')
+                    ->label('Milestone')
                     ->badge()
-                    ->sortable(),
+                    ->sortable()
+                    ->wrap(),
+                TextColumn::make('customs_lane')
+                    ->label('Lane')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): ?string => $state ? config("bl_workflows.customs_lanes.{$state}") : null)
+                    ->placeholder('-')
+                    ->toggleable(),
                 TextColumn::make('input_date')
                     ->label('Input Date')
                     ->date()
@@ -62,8 +78,15 @@ class BillOfLadingsTable
             ->filters([
                 SelectFilter::make('status')
                     ->options(array_combine(BillOfLading::STATUSES, BillOfLading::STATUSES)),
-                SelectFilter::make('phase')
-                    ->options(array_combine(BillOfLading::PHASES, BillOfLading::PHASES)),
+                SelectFilter::make('current_milestone_key')
+                    ->label('Milestone')
+                    ->options(fn (): array => BillOfLading::milestoneOptions()),
+                SelectFilter::make('shipment_type')
+                    ->label('Shipment Type')
+                    ->options(config('bl_workflows.shipment_types')),
+                SelectFilter::make('customs_lane')
+                    ->label('Customs Lane')
+                    ->options(config('bl_workflows.customs_lanes')),
                 Filter::make('input_date')
                     ->label('Input Date')
                     ->schema([
@@ -128,11 +151,7 @@ class BillOfLadingsTable
                 ViewAction::make(),
                 EditAction::make(),
             ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->toolbarActions([]);
     }
 
     /**

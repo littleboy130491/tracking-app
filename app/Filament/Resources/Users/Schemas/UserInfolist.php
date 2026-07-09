@@ -19,16 +19,16 @@ class UserInfolist
                             ->label('Email'),
                         TextEntry::make('company_name')
                             ->label('Company Name')
-                            ->placeholder('Not provided'),
+                            ->placeholder('-'),
                         TextEntry::make('company_address')
                             ->label('Company Address')
-                            ->placeholder('Not provided'),
+                            ->placeholder('-'),
                         TextEntry::make('pic_name')
                             ->label('PIC Name')
-                            ->placeholder('Not provided'),
+                            ->placeholder('-'),
                         TextEntry::make('pic_phone')
                             ->label('PIC Phone Number')
-                            ->placeholder('Not provided'),
+                            ->placeholder('-'),
                         TextEntry::make('bill_of_ladings_count')
                             ->label('BL Records')
                             ->state(fn ($record): int => $record->billOfLadings()->count()),

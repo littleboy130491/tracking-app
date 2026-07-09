@@ -36,6 +36,15 @@ class User extends Authenticatable implements FilamentUser
 
     public const ROLE_PANEL_USER = 'panel_user';
 
+    public const WORKFLOW_ROLES = [
+        'workflow_documents',
+        'workflow_customs',
+        'workflow_billing',
+        'workflow_operations',
+        'workflow_export',
+        'workflow_delivery',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -64,6 +73,21 @@ class User extends Authenticatable implements FilamentUser
     public function isCustomer(): bool
     {
         return $this->hasRole(self::ROLE_CUSTOMER);
+    }
+
+    public function canManageMilestone(?string $milestoneKey): bool
+    {
+        if ($this->hasRole(self::ROLE_ADMIN)) {
+            return true;
+        }
+
+        if (blank($milestoneKey)) {
+            return $this->hasRole(self::ROLE_PANEL_USER);
+        }
+
+        $role = config("bl_workflows.milestone_roles.{$milestoneKey}");
+
+        return filled($role) && $this->hasRole($role);
     }
 
     /**

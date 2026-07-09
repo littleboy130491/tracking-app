@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\BillOfLadings\Pages;
 
-use App\Filament\Resources\BillOfLadings\BillOfLadingResource;
+use App\Filament\Resources\BillOfLadings\Actions\ActivateDeliveryTrackAction;
+use App\Filament\Resources\BillOfLadings\Actions\AdvanceMilestoneAction;
+use App\Filament\Resources\BillOfLadings\Actions\AssignCustomsLaneAction;
 use App\Filament\Resources\BillOfLadings\Actions\PostProgressUpdateAction;
+use App\Filament\Resources\BillOfLadings\BillOfLadingResource;
 use App\Models\BillOfLading;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
@@ -16,7 +19,7 @@ class EditBillOfLading extends EditRecord
 {
     protected static string $resource = BillOfLadingResource::class;
 
-    protected Width | string | null $maxContentWidth = Width::Full;
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     protected ?string $originalStatus = null;
 
@@ -50,6 +53,9 @@ class EditBillOfLading extends EditRecord
                 'user_id' => Auth::id(),
                 'status' => $record->status,
                 'phase' => $record->phase,
+                'milestone_key' => $record->current_milestone_key,
+                'customs_lane' => $record->customs_lane,
+                'visibility' => 'customer',
                 'note' => $record->note,
             ]);
         }
@@ -60,9 +66,13 @@ class EditBillOfLading extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            AdvanceMilestoneAction::make(),
+            AssignCustomsLaneAction::make(),
+            ActivateDeliveryTrackAction::make(),
             PostProgressUpdateAction::make(),
             ViewAction::make(),
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->visible(fn (BillOfLading $record): bool => $record->canBeDeletedAfterRetention()),
         ];
     }
 }

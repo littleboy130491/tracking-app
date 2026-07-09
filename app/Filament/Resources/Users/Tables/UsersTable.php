@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Support\Icons\Heroicon;
@@ -20,7 +18,7 @@ class UsersTable
                     ->label('Company')
                     ->searchable()
                     ->sortable()
-                    ->placeholder('Not provided'),
+                    ->placeholder('-'),
                 TextColumn::make('email')
                     ->searchable()
                     ->sortable(),
@@ -53,10 +51,6 @@ class UsersTable
                 ViewAction::make(),
                 EditAction::make(),
             ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->toolbarActions([]);
     }
 }

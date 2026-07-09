@@ -3,7 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\BillOfLading;
-use App\Models\BillOfLadingUpdate;
+use App\Models\BillOfLadingContainer;
+use App\Models\BillOfLadingMilestoneState;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoDataSeeder;
@@ -20,30 +21,41 @@ class DemoSeederTest extends TestCase
 
         $this->assertSame(1, User::role(User::ROLE_ADMIN)->count());
         $this->assertSame(2, User::role(User::ROLE_CUSTOMER)->count());
+
+        // 6 client sample BLs + 18 volume demo BLs
         $this->assertSame(24, BillOfLading::query()->count());
-        $this->assertSame(48, BillOfLadingUpdate::query()->count());
-
-        $customers = User::role(User::ROLE_CUSTOMER)->with('billOfLadings')->get();
-
-        $this->assertTrue($customers->every(fn (User $customer): bool => $customer->billOfLadings->isNotEmpty()));
 
         $customerA = User::query()->where('email', 'customer-a@example.com')->firstOrFail();
         $customerB = User::query()->where('email', 'customer-b@example.com')->firstOrFail();
 
-        $this->assertSame(12, $customerA->billOfLadings()->count());
-        $this->assertSame(12, $customerB->billOfLadings()->count());
-        $this->assertNotNull($customerA->company_name);
-        $this->assertNotNull($customerA->pic_phone);
-        $this->assertNotNull($customerA->last_login_at);
+        $this->assertSame('PT Dolpin Putra Sejati', $customerA->company_name);
+        $this->assertSame(15, $customerA->billOfLadings()->count()); // 6 client + 9 volume
+        $this->assertSame(9, $customerB->billOfLadings()->count());
 
-        $sampleBl = BillOfLading::query()->whereBelongsTo($customerA, 'customer')->firstOrFail();
+        $this->assertTrue(
+            BillOfLading::query()->where('bl_number', 'KMTCSIN3242091')->exists(),
+        );
+        $this->assertTrue(
+            BillOfLading::query()->where('bl_number', 'EXPORT-DPS-2026-001')->exists(),
+        );
 
-        $this->assertNotNull($sampleBl->origin);
-        $this->assertNotNull($sampleBl->destination);
-        $this->assertNotNull($sampleBl->items_description);
-        $this->assertNotNull($sampleBl->quantity);
-        $this->assertNotNull($sampleBl->gross_weight_kg);
-        $this->assertNotNull($sampleBl->volume_cbm);
+        $sampleBl = BillOfLading::query()
+            ->where('bl_number', 'MEDUYF895047')
+            ->with(['containers', 'milestoneStates'])
+            ->firstOrFail();
+
+        $this->assertSame(BillOfLading::TYPE_IMPORT, $sampleBl->shipment_type);
+        $this->assertSame('yellow', $sampleBl->customs_lane);
+        $this->assertNotNull($sampleBl->port_of_loading);
+        $this->assertNotNull($sampleBl->port_of_discharge);
+        $this->assertNotNull($sampleBl->goods_description);
+        $this->assertGreaterThan(0, $sampleBl->containers->count());
+        $this->assertTrue(
+            $sampleBl->milestoneStates->contains(
+                fn (BillOfLadingMilestoneState $milestone): bool => $milestone->state === BillOfLadingMilestoneState::STATE_IN_PROGRESS
+            )
+        );
+        $this->assertTrue(BillOfLadingContainer::query()->exists());
 
         $this->assertFalse(
             BillOfLading::query()
@@ -60,8 +72,8 @@ class DemoSeederTest extends TestCase
         try {
             $this->seed(DemoDataSeeder::class);
 
-            $this->assertSame(DemoDataSeeder::DEMO_BL_COUNT, BillOfLading::query()->count());
-            $this->assertSame(DemoDataSeeder::DEMO_BL_COUNT * 2, BillOfLadingUpdate::query()->count());
+            // 6 client samples + requested volume count
+            $this->assertSame(6 + DemoDataSeeder::DEMO_BL_COUNT, BillOfLading::query()->count());
         } finally {
             DemoDataSeeder::$recordCount = null;
         }

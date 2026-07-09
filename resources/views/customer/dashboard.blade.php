@@ -9,11 +9,11 @@
 
     <div class="stack">
         <section class="panel bl-search-panel">
-            <h2>Search BL Number</h2>
-            <p class="help">Enter part or all of a BL number to find a specific record quickly.</p>
+            <h2>Search BL / Container</h2>
+            <p class="help">Enter part or all of a BL number or container number to find a specific record quickly.</p>
 
             <form class="bl-search" method="GET" action="{{ route('customer.dashboard') }}">
-                @foreach (['status', 'phase', 'month', 'year', 'per_page'] as $filterKey)
+                @foreach (['status', 'milestone', 'shipment_type', 'month', 'year', 'per_page'] as $filterKey)
                     @if ($filters[$filterKey] !== '' && ! ($filterKey === 'per_page' && (int) $filters['per_page'] === 10))
                         <input type="hidden" name="{{ $filterKey }}" value="{{ $filters[$filterKey] }}">
                     @endif
@@ -23,8 +23,8 @@
                     id="q"
                     name="q"
                     value="{{ $filters['q'] }}"
-                    placeholder="Example: BL-ACME-1001"
-                    aria-label="Search BL number"
+                    placeholder="Example: KMTCSIN3242091 or BEAU2653110"
+                    aria-label="Search BL or container number"
                 >
                 <button type="submit">Search</button>
                 @if ($hasBlSearch)
@@ -32,7 +32,8 @@
                         class="button secondary"
                         href="{{ route('customer.dashboard', array_filter([
                             'status' => $filters['status'] ?: null,
-                            'phase' => $filters['phase'] ?: null,
+                            'milestone' => $filters['milestone'] ?: null,
+                            'shipment_type' => $filters['shipment_type'] ?: null,
                             'month' => $filters['month'] ?: null,
                             'year' => $filters['year'] ?: null,
                             'per_page' => (int) $filters['per_page'] === 10 ? null : $filters['per_page'],
@@ -67,11 +68,21 @@
                     </div>
 
                     <div class="field">
-                        <label for="phase">Phase</label>
-                        <select id="phase" name="phase">
-                            <option value="">All phases</option>
-                            @foreach (\App\Models\BillOfLading::PHASES as $phase)
-                                <option value="{{ $phase }}" @selected($filters['phase'] === $phase)>{{ $phase }}</option>
+                        <label for="milestone">Milestone</label>
+                        <select id="milestone" name="milestone">
+                            <option value="">All milestones</option>
+                            @foreach (\App\Models\BillOfLading::milestoneOptions() as $milestoneKey => $milestoneLabel)
+                                <option value="{{ $milestoneKey }}" @selected($filters['milestone'] === $milestoneKey)>{{ $milestoneLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="shipment_type">Type</label>
+                        <select id="shipment_type" name="shipment_type">
+                            <option value="">All types</option>
+                            @foreach (config('bl_workflows.shipment_types') as $type => $label)
+                                <option value="{{ $type }}" @selected($filters['shipment_type'] === $type)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -125,8 +136,8 @@
                         <tr>
                             <th>BL Number</th>
                             <th>Status</th>
-                            <th>Phase</th>
-                            <th>Destination</th>
+                            <th>Milestone</th>
+                            <th>Route</th>
                             <th>Input Date</th>
                             <th>Last Update</th>
                         </tr>
@@ -139,10 +150,29 @@
                                 role="link"
                                 data-href="{{ route('customer.bill-of-ladings.show', $billOfLading) }}"
                             >
-                                <td>{{ $billOfLading->bl_number }}</td>
+                                <td>
+                                    <div class="bl-number-cell">
+                                        <span class="shipment-type type-{{ $billOfLading->shipment_type }}">
+                                            {{ $billOfLading->shipmentTypeLabel() }}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            class="copyable-bl bl-number"
+                                            data-copy="{{ $billOfLading->bl_number }}"
+                                            title="Click to copy BL number"
+                                            aria-label="Copy BL number {{ $billOfLading->bl_number }}"
+                                        >
+                                            {{ $billOfLading->bl_number }}
+                                        </button>
+                                    </div>
+                                </td>
                                 <td><span class="badge">{{ $billOfLading->status }}</span></td>
                                 <td><span class="badge phase">{{ $billOfLading->phase }}</span></td>
-                                <td>{{ $billOfLading->destination ?: 'Not provided' }}</td>
+                                <td>
+                                    {{ $billOfLading->port_of_loading ?: ($billOfLading->origin ?: '—') }}
+                                    →
+                                    {{ $billOfLading->port_of_discharge ?: ($billOfLading->destination ?: '-') }}
+                                </td>
                                 <td>{{ $billOfLading->input_date->format('M j, Y') }}</td>
                                 <td>{{ $billOfLading->updated_at->format('M j, Y H:i') }}</td>
                             </tr>

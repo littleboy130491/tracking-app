@@ -1,120 +1,257 @@
 <x-customer.layout title="{{ $billOfLading->bl_number }}">
-    <div class="header">
-        <div>
-            <h1>{{ $billOfLading->bl_number }}</h1>
-            <p class="muted">{{ $billOfLading->shipment_description }}</p>
+    @php
+        $currentNode = $timelineNodes->firstWhere('state', 'in_progress')
+            ?? $timelineNodes->last(fn ($node) => $node['state'] === 'completed');
+        $completedCount = $timelineNodes->where('state', 'completed')->count();
+        $totalCount = $timelineNodes->count();
+        $pol = $billOfLading->port_of_loading ?: ($billOfLading->origin ?: '-');
+        $pod = $billOfLading->port_of_discharge ?: ($billOfLading->destination ?: '-');
+        $cbm = $billOfLading->measurement_cbm ?: $billOfLading->volume_cbm;
+        $latestNote = $billOfLading->customer_note ?: $billOfLading->note;
+    @endphp
+
+    <div class="detail-top">
+        <a class="back-link" href="{{ route('customer.dashboard') }}">← Back to list</a>
+
+        <div class="status-hero {{ $laneClass }}">
+            <div class="status-hero-main">
+                <p class="status-kicker">Current status</p>
+                <p class="shipment-type type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</p>
+                <h1>
+                    <button
+                        type="button"
+                        class="copyable-bl"
+                        data-copy="{{ $billOfLading->bl_number }}"
+                        title="Click to copy BL number"
+                        aria-label="Copy BL number {{ $billOfLading->bl_number }}"
+                    >
+                        {{ $billOfLading->bl_number }}
+                    </button>
+                </h1>
+                <p class="status-step">
+                    {{ $currentNode['label'] ?? ($billOfLading->phase ?: $billOfLading->status) }}
+                </p>
+                <p class="status-route">{{ $pol }} → {{ $pod }}</p>
+                @if ($billOfLading->shipment_description)
+                    <p class="status-summary">{{ $billOfLading->shipment_description }}</p>
+                @endif
+                <div class="header-badges">
+                    <span class="badge">{{ $billOfLading->status }}</span>
+                    @if ($billOfLading->customsLaneLabel())
+                        <span class="badge lane {{ $laneClass }}">{{ $billOfLading->customsLaneLabel() }}</span>
+                    @endif
+                </div>
+            </div>
+
+            <div class="status-hero-side">
+                @if ($totalCount > 0)
+                    <div class="status-meta">
+                        <strong>Progress</strong>
+                        <p>{{ $completedCount }} of {{ $totalCount }} steps done</p>
+                    </div>
+                @endif
+                <div class="status-meta">
+                    <strong>Last update</strong>
+                    <p>{{ $billOfLading->updated_at->format('M j, Y H:i') }}</p>
+                </div>
+                @if ($billOfLading->gps_tracking_url)
+                    <a
+                        class="button gps-button"
+                        href="{{ $billOfLading->gps_tracking_url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Open GPS tracking
+                    </a>
+                @endif
+                @if ($latestNote)
+                    <div class="status-note">
+                        <strong>Latest note</strong>
+                        <p>{{ $latestNote }}</p>
+                    </div>
+                @endif
+            </div>
         </div>
-        <a class="button secondary" href="{{ route('customer.dashboard') }}">Back</a>
     </div>
 
-    <div class="stack">
+    <div class="stack detail-stack">
         <section class="panel">
-            <h2>Shipment Details</h2>
-            <div class="grid">
+            <div class="section-heading">
+                <h2>Progress</h2>
+                <p class="section-help">Follow the steps from top to bottom.</p>
+            </div>
+
+            @if ($timelineNodes->isEmpty())
+                <div class="empty">No progress steps yet.</div>
+            @else
+                <ol class="step-list {{ $laneClass }}">
+                    @foreach ($timelineNodes as $index => $node)
+                        <li class="step-item state-{{ $node['state'] }}">
+                            <div class="step-rail" aria-hidden="true">
+                                <span class="step-dot">
+                                    @if ($node['state'] === 'completed')
+                                        ✓
+                                    @elseif ($node['state'] === 'in_progress')
+                                        {{ $index + 1 }}
+                                    @else
+                                        {{ $index + 1 }}
+                                    @endif
+                                </span>
+                            </div>
+                            <div class="step-body">
+                                <div class="step-title-row">
+                                    <span class="step-title">{{ $node['label'] }}</span>
+                                    <span class="step-state">
+                                        @if ($node['state'] === 'completed')
+                                            Done
+                                        @elseif ($node['state'] === 'in_progress')
+                                            In progress
+                                        @else
+                                            Upcoming
+                                        @endif
+                                    </span>
+                                </div>
+                            </div>
+                        </li>
+                    @endforeach
+                </ol>
+            @endif
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Shipment summary</h2>
+            </div>
+
+            <div class="summary-grid">
                 <div>
-                    <strong>Input Date</strong>
-                    <p>{{ $billOfLading->input_date->format('M j, Y') }}</p>
+                    <strong>Carrier</strong>
+                    <p>{{ $billOfLading->carrier_name ?: '-' }}</p>
                 </div>
                 <div>
-                    <strong>Origin</strong>
-                    <p>{{ $billOfLading->origin ?: 'Not provided' }}</p>
+                    <strong>Vessel / Voyage</strong>
+                    <p>
+                        @if ($billOfLading->vessel_name)
+                            {{ $billOfLading->vessel_name }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}
+                        @else
+                            -
+                        @endif
+                    </p>
                 </div>
                 <div>
-                    <strong>Destination</strong>
-                    <p>{{ $billOfLading->destination ?: 'Not provided' }}</p>
+                    <strong>Shipped on board</strong>
+                    <p>{{ $billOfLading->shipped_on_board_date?->format('M j, Y') ?: '-' }}</p>
                 </div>
                 <div>
-                    <strong>Quantity</strong>
-                    <p>{{ $billOfLading->quantity ?: 'Not provided' }}</p>
+                    <strong>Packages</strong>
+                    <p>{{ $billOfLading->package_count ?: ($billOfLading->quantity ?: '-') }}</p>
                 </div>
                 <div>
-                    <strong>Gross Weight</strong>
+                    <strong>Gross weight</strong>
                     <p>
                         @if ($billOfLading->gross_weight_kg)
                             {{ number_format((float) $billOfLading->gross_weight_kg, 2) }} kg
                         @else
-                            <span class="muted">Not provided</span>
+                            -
                         @endif
                     </p>
                 </div>
                 <div>
-                    <strong>Volume</strong>
+                    <strong>Measurement</strong>
                     <p>
-                        @if ($billOfLading->volume_cbm)
-                            {{ number_format((float) $billOfLading->volume_cbm, 2) }} CBM
+                        @if ($cbm)
+                            {{ number_format((float) $cbm, 2) }} CBM
                         @else
-                            <span class="muted">Not provided</span>
+                            -
                         @endif
                     </p>
                 </div>
-                <div class="full-width">
-                    <strong>Items Information</strong>
-                    <p>{{ $billOfLading->items_description ?: 'Not provided' }}</p>
+                <div>
+                    <strong>HS code</strong>
+                    <p>{{ $billOfLading->hs_code ?: '-' }}</p>
                 </div>
+                <div>
+                    <strong>Input date</strong>
+                    <p>{{ $billOfLading->input_date->format('M j, Y') }}</p>
+                </div>
+                <div class="full-width">
+                    <strong>Goods</strong>
+                    <p>{{ $billOfLading->goods_description ?: ($billOfLading->items_description ?: ($billOfLading->shipment_description ?: '-')) }}</p>
+                </div>
+                @if ($billOfLading->free_time_notes)
+                    <div class="full-width">
+                        <strong>Free time notes</strong>
+                        <p>{{ $billOfLading->free_time_notes }}</p>
+                    </div>
+                @endif
             </div>
         </section>
 
-        <div class="tracking-row">
-            <section class="panel">
-                <h2>Update History</h2>
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Containers</h2>
+            </div>
 
-                @if ($billOfLading->updates->isEmpty())
-                    <div class="empty">No update history yet.</div>
-                @else
-                    <ol class="timeline">
-                        @foreach ($billOfLading->updates as $update)
-                            <li class="timeline-item">
-                                <div class="timeline-marker" aria-hidden="true"></div>
-                                <div class="timeline-content">
-                                    <time datetime="{{ $update->created_at->toIso8601String() }}">
-                                        {{ $update->created_at->format('M j, Y H:i') }}
-                                    </time>
-                                    <div class="timeline-meta">
-                                        <span class="badge">{{ $update->status }}</span>
-                                        <span class="badge phase">{{ $update->phase }}</span>
-                                        <span class="timeline-by">{{ $update->user?->name ?? 'System' }}</span>
-                                    </div>
-                                    @if ($update->note)
-                                        <p class="timeline-note">{{ $update->note }}</p>
-                                    @endif
-                                </div>
-                            </li>
-                        @endforeach
-                    </ol>
-                @endif
-            </section>
-
-            <section class="panel">
-                <h2>Current Tracking</h2>
-                <div class="detail-list">
-                    <div>
-                        <strong>Status</strong>
-                        <p><span class="badge">{{ $billOfLading->status }}</span></p>
-                    </div>
-                    <div>
-                        <strong>Phase</strong>
-                        <p><span class="badge phase">{{ $billOfLading->phase }}</span></p>
-                    </div>
-                    <div>
-                        <strong>Last Update</strong>
-                        <p>{{ $billOfLading->updated_at->format('M j, Y H:i') }}</p>
-                    </div>
-                    <div>
-                        <strong>GPS Tracking URL</strong>
-                        <p>
-                            @if ($billOfLading->gps_tracking_url)
-                                <a href="{{ $billOfLading->gps_tracking_url }}" target="_blank" rel="noopener noreferrer">Open tracking link</a>
-                            @else
-                                <span class="muted">Not provided</span>
-                            @endif
-                        </p>
-                    </div>
-                    <div>
-                        <strong>Current Note</strong>
-                        <p>{{ $billOfLading->note ?: 'No current note' }}</p>
-                    </div>
+            @if ($billOfLading->containers->isEmpty())
+                <div class="empty">No containers recorded.</div>
+            @else
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Container</th>
+                                <th>Seal</th>
+                                <th>Type</th>
+                                <th>Packages</th>
+                                <th>Weight (kg)</th>
+                                <th>CBM</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($billOfLading->containers as $container)
+                                <tr>
+                                    <td>{{ $container->container_number }}</td>
+                                    <td>{{ $container->seal_number ?: '-' }}</td>
+                                    <td>{{ $container->container_type ?: '-' }}</td>
+                                    <td>{{ $container->package_count ?: '-' }}</td>
+                                    <td>{{ $container->gross_weight_kg ? number_format((float) $container->gross_weight_kg, 3) : '-' }}</td>
+                                    <td>{{ $container->measurement_cbm ? number_format((float) $container->measurement_cbm, 3) : '-' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
-            </section>
-        </div>
+            @endif
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Update history</h2>
+                <p class="section-help">Recent changes on this shipment.</p>
+            </div>
+
+            @if ($billOfLading->updates->isEmpty())
+                <div class="empty">No update history yet.</div>
+            @else
+                <ol class="history-list">
+                    @foreach ($billOfLading->updates->sortByDesc('created_at') as $update)
+                        <li class="history-item">
+                            <time datetime="{{ $update->created_at->toIso8601String() }}">
+                                {{ $update->created_at->format('M j, Y H:i') }}
+                            </time>
+                            <div class="history-body">
+                                <div class="timeline-meta">
+                                    <span class="badge">{{ $update->status }}</span>
+                                    <span class="badge phase">{{ $update->phase }}</span>
+                                </div>
+                                @if ($update->note)
+                                    <p class="timeline-note">{{ $update->note }}</p>
+                                @endif
+                            </div>
+                        </li>
+                    @endforeach
+                </ol>
+            @endif
+        </section>
     </div>
 </x-customer.layout>

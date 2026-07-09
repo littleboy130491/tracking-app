@@ -13,12 +13,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'user_id',
     'status',
     'phase',
+    'milestone_key',
+    'customs_lane',
+    'visibility',
     'note',
 ])]
 class BillOfLadingUpdate extends Model
 {
     /** @use HasFactory<BillOfLadingUpdateFactory> */
     use HasFactory;
+
+    public const VISIBILITY_CUSTOMER = 'customer';
+
+    public const VISIBILITY_ADMIN_ONLY = 'admin_only';
 
     /**
      * @return BelongsTo<BillOfLading, $this>
@@ -34,5 +41,10 @@ class BillOfLadingUpdate extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function isCustomerVisible(): bool
+    {
+        return ($this->visibility ?? self::VISIBILITY_CUSTOMER) === self::VISIBILITY_CUSTOMER;
     }
 }

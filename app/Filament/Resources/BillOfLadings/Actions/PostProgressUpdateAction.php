@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\BillOfLadings\Actions;
 
 use App\Models\BillOfLading;
+use App\Models\BillOfLadingUpdate;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -16,15 +17,18 @@ class PostProgressUpdateAction
             ->label('Post Progress Update')
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('primary')
+            ->visible(fn (BillOfLading $record): bool => auth()->user()?->canManageMilestone($record->current_milestone_key) ?? false)
             ->modalHeading('Post Progress Update')
-            ->modalDescription('Add a new status, phase, and note for this BL. Customers will see it in their update history.')
+            ->modalDescription('Add a free-form status note without advancing the milestone engine. Prefer Advance Milestone for operational steps.')
             ->modalSubmitActionLabel('Post update')
             ->schema([
                 Select::make('status')
                     ->options(array_combine(BillOfLading::STATUSES, BillOfLading::STATUSES))
                     ->required(),
-                Select::make('phase')
-                    ->options(array_combine(BillOfLading::PHASES, BillOfLading::PHASES))
+                Select::make('visibility')
+                    ->label('Visibility')
+                    ->options(config('bl_workflows.visibilities'))
+                    ->default(BillOfLadingUpdate::VISIBILITY_CUSTOMER)
                     ->required(),
                 Textarea::make('note')
                     ->label('Update note')
@@ -34,11 +38,11 @@ class PostProgressUpdateAction
             ])
             ->fillForm(fn (BillOfLading $record): array => [
                 'status' => $record->status,
-                'phase' => $record->phase,
+                'visibility' => BillOfLadingUpdate::VISIBILITY_CUSTOMER,
                 'note' => '',
             ])
             ->action(function (array $data, BillOfLading $record): void {
-                $record->postProgressUpdate($data);
+                $record->postProgressUpdate($data, auth()->id());
             })
             ->successNotificationTitle('Progress update posted');
     }

@@ -15,7 +15,7 @@ class EditUser extends EditRecord
 
     protected static string $resource = UserResource::class;
 
-    protected Width | string | null $maxContentWidth = Width::Full;
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     /**
      * @param  array<string, mixed>  $data
@@ -30,7 +30,10 @@ class EditUser extends EditRecord
     {
         return [
             ViewAction::make(),
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->visible(fn ($record): bool => $record->billOfLadings()
+                    ->get()
+                    ->every(fn ($billOfLading): bool => $billOfLading->canBeDeletedAfterRetention())),
         ];
     }
 }

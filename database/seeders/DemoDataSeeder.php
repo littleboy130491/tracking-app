@@ -5,58 +5,24 @@ namespace Database\Seeders;
 use App\Models\BillOfLading;
 use App\Models\BillOfLadingUpdate;
 use App\Models\User;
+use App\Services\BillOfLadingWorkflowService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class DemoDataSeeder extends Seeder
 {
+    /**
+     * Extra synthetic volume records (split across customers) for list/filter demos.
+     * Real client BL samples are always seeded in addition to this count.
+     */
     public const DEMO_BL_COUNT = 300;
 
     public static ?int $recordCount = null;
-
-    /**
-     * @var array<int, string>
-     */
-    private const ORIGINS = [
-        'Jakarta Port, Indonesia',
-        'Surabaya Port, Indonesia',
-        'Semarang Port, Indonesia',
-        'Belawan Port, Indonesia',
-        'Makassar Port, Indonesia',
-    ];
-
-    /**
-     * @var array<int, string>
-     */
-    private const DESTINATIONS = [
-        'Singapore Port, Singapore',
-        'Manila Port, Philippines',
-        'Bangkok Port, Thailand',
-        'Ho Chi Minh Port, Vietnam',
-        'Hong Kong Port, Hong Kong',
-        'Rotterdam Port, Netherlands',
-    ];
-
-    /**
-     * @var array<int, string>
-     */
-    private const ITEM_TYPES = [
-        'Consumer electronics',
-        'Industrial spare parts',
-        'Textile rolls',
-        'Automotive components',
-        'Agricultural products',
-        'Medical supplies',
-        'Steel coils',
-        'Furniture shipment',
-    ];
 
     public function run(): void
     {
@@ -67,23 +33,27 @@ class DemoDataSeeder extends Seeder
 
         $admin = $this->seedAdmin();
         $customers = $this->seedCustomers();
-        $this->seedBillOfLadings($admin, $customers);
+        $this->seedClientBillOfLadings($admin, $customers['dolpin']);
+        $this->seedVolumeBillOfLadings($admin, $customers);
         $this->seedShieldPermissions();
     }
 
-    private function blRecordCount(): int
+    private function volumeRecordCount(): int
     {
         if (self::$recordCount !== null) {
             return self::$recordCount;
         }
 
-        return app()->environment('testing') ? 24 : self::DEMO_BL_COUNT;
+        return app()->environment('testing') ? 18 : self::DEMO_BL_COUNT;
     }
 
     private function wipeApplicationData(): void
     {
         Schema::disableForeignKeyConstraints();
 
+        DB::table('bill_of_lading_documents')->delete();
+        DB::table('bill_of_lading_milestone_states')->delete();
+        DB::table('bill_of_lading_containers')->delete();
         BillOfLadingUpdate::query()->delete();
         BillOfLading::query()->delete();
         DB::table('model_has_roles')->delete();
@@ -95,7 +65,7 @@ class DemoDataSeeder extends Seeder
 
     private function seedRoles(): void
     {
-        foreach ([User::ROLE_ADMIN, User::ROLE_PANEL_USER, User::ROLE_CUSTOMER] as $role) {
+        foreach ([User::ROLE_ADMIN, User::ROLE_PANEL_USER, User::ROLE_CUSTOMER, ...User::WORKFLOW_ROLES] as $role) {
             Role::query()->firstOrCreate([
                 'name' => $role,
                 'guard_name' => 'web',
@@ -115,22 +85,22 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * @return array<string, User>
+     * @return array{dolpin: User, beta: User}
      */
     private function seedCustomers(): array
     {
-        $customerA = User::factory()->create([
-            'name' => 'Acme Logistics',
+        $dolpin = User::factory()->create([
+            'name' => 'PT Dolpin Putra Sejati',
             'email' => 'customer-a@example.com',
-            'company_name' => 'Acme Logistics',
-            'company_address' => 'Jl. Sudirman No. 10, Jakarta 10220',
-            'pic_name' => 'Rina Wijaya',
-            'pic_phone' => '+62 812 3456 7890',
-            'last_login_at' => now()->subDays(2),
+            'company_name' => 'PT Dolpin Putra Sejati',
+            'company_address' => 'Komp. Jakarta Distribution Centre, Jl. Kapuk Kamal Raya No. 40 Blok B Kav. No. 03, Jakarta Utara 14470',
+            'pic_name' => 'Ops PIC Dolpin',
+            'pic_phone' => '+62 21 22057980',
+            'last_login_at' => now()->subDays(1),
         ]);
-        $customerA->assignRole(User::ROLE_CUSTOMER);
+        $dolpin->assignRole(User::ROLE_CUSTOMER);
 
-        $customerB = User::factory()->create([
+        $beta = User::factory()->create([
             'name' => 'Beta Trading',
             'email' => 'customer-b@example.com',
             'company_name' => 'Beta Trading',
@@ -139,90 +109,414 @@ class DemoDataSeeder extends Seeder
             'pic_phone' => '+62 813 9876 5432',
             'last_login_at' => now()->subDays(5),
         ]);
-        $customerB->assignRole(User::ROLE_CUSTOMER);
+        $beta->assignRole(User::ROLE_CUSTOMER);
 
         return [
-            'acme' => $customerA,
-            'beta' => $customerB,
+            'dolpin' => $dolpin,
+            'beta' => $beta,
         ];
     }
 
-    /**
-     * @param  array<string, User>  $customers
-     */
-    private function seedBillOfLadings(User $admin, array $customers): void
+    private function seedClientBillOfLadings(User $admin, User $dolpin): void
     {
-        $total = $this->blRecordCount();
-        $perCustomer = intdiv($total, count($customers));
-        $now = now();
+        $workflow = app(BillOfLadingWorkflowService::class);
+        $consigneeAddress = 'Komp. Jakarta Distribution Centre, Jl. Kapuk Kamal Raya No. 40 Blok B Kav. No. 03, Kel. Kamal Muara, Kec. Penjaringan, Jakarta Utara 14470';
+        $npwp = '0018372391046000';
 
-        foreach ($customers as $key => $customer) {
-            $prefix = $key === 'acme' ? 'ACME' : 'BETA';
+        // 1) KMTC — Green lane, delivery completed
+        $kmtc = $this->createBl([
+            'customer_id' => $dolpin->id,
+            'bl_number' => 'KMTCSIN3242091',
+            'booking_number' => 'SG00374360',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'carrier_name' => 'KMTC Line',
+            'bl_document_type' => 'non_negotiable',
+            'bl_surrendered' => true,
+            'shipment_description' => 'PP Copolymer import Singapore → Tanjung Priok (4x20\'GP)',
+            'shipper_name' => 'SUMITOMO CORPORATION ASIA & OCEANIA PTE LTD',
+            'shipper_address' => 'Singapore',
+            'consignee_name' => 'PT DOLPIN PUTRA SEJATI',
+            'consignee_address' => $consigneeAddress,
+            'consignee_npwp' => $npwp,
+            'notify_party_name' => 'SAME AS CONSIGNEE',
+            'destination_agent_name' => 'PT SAMUDERA INDONESIA GROUP',
+            'destination_agent_contact' => 'South Jakarta',
+            'place_of_receipt' => 'SINGAPORE',
+            'port_of_loading' => 'SINGAPORE',
+            'port_of_discharge' => 'TANJUNG PRIOK JAKARTA INDONESIA',
+            'place_of_delivery' => 'TANJUNG PRIOK JAKARTA INDONESIA',
+            'vessel_name' => 'BELAWAN',
+            'voyage_number' => '2506S',
+            'movement_type' => 'CY-CY',
+            'goods_description' => '64 MT PP COPOLYMER PC9415G',
+            'hs_code' => '3902.30.90',
+            'package_count' => '2560 BAGS',
+            'container_count_label' => "4 x 20'GP CONTAINERS",
+            'gross_weight_kg' => 64308,
+            'measurement_cbm' => 117.76,
+            'free_time_notes' => '14 DAYS FREE TIME AT DESTINATION',
+            'freight_terms' => 'FREIGHT PREPAID AS ARRANGED',
+            'export_reference' => 'SQZSE-25-1359',
+            'input_date' => '2025-07-02',
+            'issue_date' => '2025-07-02',
+            'place_of_issue' => 'SINGAPORE',
+            'shipped_on_board_date' => '2025-07-02',
+            'status' => BillOfLading::STATUS_PENDING,
+            'phase' => 'Input',
+            'gps_tracking_url' => 'https://maps.google.com/?q=Tanjung+Priok',
+            'customer_note' => 'Import BL seeded from KMTC sample.',
+            'note' => 'Import BL seeded from KMTC sample.',
+        ], [
+            ['container_number' => 'BEAU2653110', 'seal_number' => 'KMTC1519769', 'container_type' => "20'GP", 'package_count' => '640 BAGS', 'gross_weight_kg' => 16077, 'measurement_cbm' => 29.44, 'sort_order' => 1],
+            ['container_number' => 'SEGU1887687', 'seal_number' => 'KMTC1519765', 'container_type' => "20'GP", 'package_count' => '640 BAGS', 'gross_weight_kg' => 16077, 'measurement_cbm' => 29.44, 'sort_order' => 2],
+            ['container_number' => 'TEMU0376333', 'seal_number' => 'KMTC1519766', 'container_type' => "20'GP", 'package_count' => '640 BAGS', 'gross_weight_kg' => 16077, 'measurement_cbm' => 29.44, 'sort_order' => 3],
+            ['container_number' => 'TRHU3351311', 'seal_number' => 'KMTC1519768', 'container_type' => "20'GP", 'package_count' => '640 BAGS', 'gross_weight_kg' => 16077, 'measurement_cbm' => 29.44, 'sort_order' => 4],
+        ], $admin);
 
-            for ($index = 1; $index <= $perCustomer; $index++) {
-                $origin = self::ORIGINS[($index - 1) % count(self::ORIGINS)];
-                $destination = self::DESTINATIONS[$index % count(self::DESTINATIONS)];
-                $itemType = self::ITEM_TYPES[$index % count(self::ITEM_TYPES)];
-                $quantity = (($index * 7) % 450) + 20;
-                $inputDate = Carbon::create(
-                    year: 2024 + ($index % 3),
-                    month: ($index % 12) + 1,
-                    day: min((($index * 3) % 28) + 1, 28),
-                );
-                $status = BillOfLading::STATUSES[$index % count(BillOfLading::STATUSES)];
-                $phase = BillOfLading::PHASES[$index % count(BillOfLading::PHASES)];
-                $note = match ($phase) {
-                    'Customs' => 'Awaiting customs document verification.',
-                    'Transit' => 'Container departed origin port.',
-                    'Delivery' => 'Cargo scheduled for final delivery.',
-                    'Closed' => 'Shipment closed after final delivery confirmation.',
-                    default => 'BL record created for tracking.',
-                };
+        $this->advanceImportThroughLane($workflow, $kmtc, 'green', 'deliver_container', $admin->id);
+        $workflow->activateDeliveryTrack($kmtc->fresh(), $admin->id, 'Delivery track started after SPPB.');
+        $workflow->advanceToMilestone($kmtc->fresh(), 'down_container_depot', $admin->id);
+        $workflow->completeCurrentMilestone($kmtc->fresh(), [
+            'note' => 'Delivery completed to factory.',
+            'status' => BillOfLading::STATUS_COMPLETED,
+        ], $admin->id);
+
+        // 2) MSC — Yellow lane, in progress at SPJK
+        $msc = $this->createBl([
+            'customer_id' => $dolpin->id,
+            'bl_number' => 'MEDUYF895047',
+            'booking_number' => '177BVBWWXVCN2030A',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'carrier_name' => 'Mediterranean Shipping Company (MSC)',
+            'bl_document_type' => 'non_negotiable',
+            'bl_surrendered' => false,
+            'shipment_description' => 'LLDPE import Tianjin → Jakarta (4x40\'HC)',
+            'shipper_name' => 'ZHEJIANG FUTURE PETROCHEMICAL CO., LTD.',
+            'shipper_address' => '6-7F HI-TECH MANSION, NO. 899 JIANGNAN ROAD, NINGBO, CHINA',
+            'consignee_name' => 'PT. DOLPIN PUTRA SEJATI',
+            'consignee_address' => $consigneeAddress,
+            'consignee_npwp' => $npwp,
+            'notify_party_name' => 'SAME AS CONSIGNEE',
+            'destination_agent_name' => 'PT MSC Mediterranean Shipping Indonesia',
+            'destination_agent_contact' => 'Capital Place Building, 39th Floor, Jakarta',
+            'port_of_loading' => 'TIANJIN, CHINA',
+            'port_of_discharge' => 'Jakarta, Java, Indonesia',
+            'vessel_name' => 'MSC SHAULA',
+            'voyage_number' => 'HW620A',
+            'goods_description' => 'LINEAR LOW DENSITY POLYETHYLENE LLDPE SINOPEC EGF-35B',
+            'hs_code' => '3901',
+            'package_count' => '4320 BAGS',
+            'container_count_label' => "4 x 40' HIGH CUBE",
+            'gross_weight_kg' => 108432,
+            'measurement_cbm' => 200,
+            'freight_terms' => 'FREIGHT PREPAID',
+            'export_reference' => '1312-7655-ST',
+            'input_date' => '2026-05-26',
+            'issue_date' => '2026-05-26',
+            'place_of_issue' => 'Tianjin, China',
+            'shipped_on_board_date' => '2026-05-20',
+            'status' => BillOfLading::STATUS_PENDING,
+            'phase' => 'Input',
+            'customer_note' => 'Awaiting document submit after SPJK.',
+            'note' => 'Awaiting document submit after SPJK.',
+        ], [
+            ['container_number' => 'FFAU2377526', 'seal_number' => 'FX46586486', 'container_type' => "40'HC", 'package_count' => '1080 BAGS', 'gross_weight_kg' => 27108, 'measurement_cbm' => 50, 'tare_weight_kg' => 3700, 'sort_order' => 1],
+            ['container_number' => 'MSDU8105604', 'seal_number' => 'FX46586467', 'container_type' => "40'HC", 'package_count' => '1080 BAGS', 'gross_weight_kg' => 27108, 'measurement_cbm' => 50, 'tare_weight_kg' => 3840, 'sort_order' => 2],
+            ['container_number' => 'TIBU4337360', 'seal_number' => 'FX46586468', 'container_type' => "40'HC", 'package_count' => '1080 BAGS', 'gross_weight_kg' => 27108, 'measurement_cbm' => 50, 'tare_weight_kg' => 3700, 'sort_order' => 3],
+            ['container_number' => 'FFAU1339603', 'seal_number' => 'FX46586469', 'container_type' => "40'HC", 'package_count' => '1080 BAGS', 'gross_weight_kg' => 27108, 'measurement_cbm' => 50, 'tare_weight_kg' => 3700, 'sort_order' => 4],
+        ], $admin);
+
+        $this->advanceImportThroughLane($workflow, $msc, 'yellow', 'lane_notice', $admin->id);
+
+        // 3) Samudera — Green lane, SPPB done / delivery pending
+        $samudera = $this->createBl([
+            'customer_id' => $dolpin->id,
+            'bl_number' => 'SSLSGJKTCAE9741',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'carrier_name' => 'Samudera Shipping Line Ltd',
+            'bl_document_type' => 'copy',
+            'bl_surrendered' => true,
+            'shipment_description' => 'LDPE Cosmothene import Singapore → Tanjung Priok (1x20\'GP)',
+            'shipper_name' => 'SUMITOMO CORPORATION ASIA & OCEANIA PTE LTD',
+            'shipper_address' => '182 CECIL STREET #22-01, FRASERS TOWER SINGAPORE 069547',
+            'consignee_name' => 'PT DOLPIN PUTRA SEJATI',
+            'consignee_address' => $consigneeAddress,
+            'consignee_npwp' => $npwp,
+            'notify_party_name' => 'SAME AS CONSIGNEE',
+            'destination_agent_name' => 'PT. SAMUDERA AGENCIES INDONESIA',
+            'destination_agent_contact' => "GEDUNG SAMUDERA KIRANA 1ST FLOOR\nJL. YOS SUDARSO NO. 88\nSUNTER JAYA - JAKARTA UTARA 14350\nTel: (021) 25676990",
+            'place_of_receipt' => 'SINGAPORE CY',
+            'port_of_loading' => 'SINGAPORE',
+            'port_of_discharge' => 'TANJUNG PRIOK',
+            'place_of_delivery' => 'TANJUNG PRIOK CY',
+            'vessel_name' => 'AN HAI',
+            'voyage_number' => '039S',
+            'goods_description' => '16 MT LDPE COSMOTHENE L705',
+            'hs_code' => '3901.10.99',
+            'package_count' => '640 BAGS',
+            'container_count_label' => "1 x 20' GP CONTAINER",
+            'gross_weight_kg' => 16077,
+            'measurement_cbm' => 29.44,
+            'marks_and_numbers' => 'INV NO. SQZSE-25-0474-1',
+            'free_time_notes' => '14 DAYS FREE DETENTION / DEMURRAGE AT DESTINATION',
+            'freight_terms' => 'FREIGHT PREPAID',
+            'input_date' => '2025-02-13',
+            'issue_date' => '2025-02-13',
+            'place_of_issue' => 'SINGAPORE',
+            'shipped_on_board_date' => '2025-02-13',
+            'status' => BillOfLading::STATUS_PENDING,
+            'phase' => 'Input',
+            'customer_note' => 'SPPB issued; container delivery pending.',
+            'note' => 'SPPB issued; container delivery pending.',
+        ], [
+            ['container_number' => 'CAIU6179528', 'seal_number' => '2432497', 'container_type' => "20'GP", 'package_count' => '640 BAGS', 'gross_weight_kg' => 16077, 'measurement_cbm' => 29.44, 'sort_order' => 1],
+        ], $admin);
+
+        $this->advanceImportThroughLane($workflow, $samudera, 'green', 'sppb', $admin->id);
+        $workflow->completeCurrentMilestone($samudera->fresh(), [
+            'note' => 'SPPB completed.',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+        ], $admin->id);
+
+        // 4) COSCO — Red lane, physical inspection done, SPPB in progress
+        $cosco = $this->createBl([
+            'customer_id' => $dolpin->id,
+            'bl_number' => 'COSU6394859890',
+            'booking_number' => '6394859890',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'carrier_name' => 'COSCO Shipping Lines',
+            'bl_document_type' => 'original',
+            'bl_surrendered' => false,
+            'shipment_description' => 'HDPE EGDA-6888 import Shuaiba → Jakarta (4x40HQ)',
+            'shipper_name' => 'EQUATE PETROCHEMICAL CO. K.S.C.C.',
+            'shipper_address' => 'P.O.BOX 100, AHMADI 61001, KUWAIT',
+            'consignee_name' => 'PT. DOLPIN PUTRA SEJATI',
+            'consignee_address' => $consigneeAddress,
+            'consignee_npwp' => $npwp,
+            'notify_party_name' => 'SAME AS CONSIGNEE',
+            'destination_agent_name' => 'PT. COSCO SHIPPING LINES INDONESIA',
+            'destination_agent_contact' => 'TCC BATAVIA TOWER ONE, 19TH FLOOR, JL. KH. MAS MANSYUR KAV. 126',
+            'place_of_receipt' => 'SHUAIBA, KUWAIT',
+            'port_of_loading' => 'SHUAIBA, KUWAIT',
+            'port_of_discharge' => 'JAKARTA, INDONESIA',
+            'place_of_delivery' => 'JAKARTA, INDONESIA',
+            'vessel_name' => 'ZHONG GU DA LIAN',
+            'voyage_number' => '24029E',
+            'movement_type' => 'FCL / FCL, CY-CY',
+            'goods_description' => '04 CNTRS STC 99 MT HIGH DENSITY POLYETHYLENE EGDA-6888',
+            'hs_code' => '3901.20',
+            'package_count' => '3960 BAGS',
+            'container_count_label' => '4 x 40HQ',
+            'gross_weight_kg' => 101116,
+            'measurement_cbm' => 220,
+            'free_time_notes' => '14 DAYS FREE LINE DETENTION/DEMURRAGE AT PORT OF DISCHARGE',
+            'freight_terms' => 'FREIGHT PREPAID ON CY-CY TERM',
+            'export_reference' => 'LD-165/24',
+            'input_date' => '2024-09-07',
+            'issue_date' => '2024-09-07',
+            'place_of_issue' => 'SINGAPORE',
+            'shipped_on_board_date' => '2024-09-07',
+            'status' => BillOfLading::STATUS_PENDING,
+            'phase' => 'Input',
+            'customer_note' => 'Physical inspection completed; SPPB in progress.',
+            'note' => 'Physical inspection completed; SPPB in progress.',
+        ], [
+            ['container_number' => 'CSNU6669884', 'seal_number' => 'EQ0632762', 'container_type' => '40HQ', 'package_count' => '990 BAGS', 'gross_weight_kg' => 25279, 'measurement_cbm' => 55, 'sort_order' => 1],
+            ['container_number' => 'FSCU8483882', 'seal_number' => 'EQ0632766', 'container_type' => '40HQ', 'package_count' => '990 BAGS', 'gross_weight_kg' => 25279, 'measurement_cbm' => 55, 'sort_order' => 2],
+            ['container_number' => 'OOCU8417727', 'seal_number' => 'EQ0632764', 'container_type' => '40HQ', 'package_count' => '990 BAGS', 'gross_weight_kg' => 25279, 'measurement_cbm' => 55, 'sort_order' => 3],
+            ['container_number' => 'TCNU1386470', 'seal_number' => 'EQ0632767', 'container_type' => '40HQ', 'package_count' => '990 BAGS', 'gross_weight_kg' => 25279, 'measurement_cbm' => 55, 'sort_order' => 4],
+        ], $admin);
+
+        $this->advanceImportThroughLane($workflow, $cosco, 'red', 'sppb', $admin->id);
+
+        // 5) OOCL — pre-lane, billing stage
+        $oocl = $this->createBl([
+            'customer_id' => $dolpin->id,
+            'bl_number' => 'OOLU2327606650',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'carrier_name' => 'Orient Overseas Container Line (OOCL)',
+            'bl_document_type' => 'non_negotiable',
+            'bl_surrendered' => true,
+            'shipment_description' => 'LLDPE SINOPEC F181CC import Yangpu → Jakarta (6 containers)',
+            'shipper_name' => 'SINOPEC CHEMICAL COMMERCIAL INTERNATIONAL CO., LTD.',
+            'shipper_address' => 'Room A-511, 188 Yesheng Road, Lingang Section of Shanghai Pilot Free Trade Zone, China',
+            'consignee_name' => 'PT. DOLPIN PUTRA SEJATI',
+            'consignee_address' => $consigneeAddress,
+            'consignee_npwp' => $npwp,
+            'notify_party_name' => 'SAME AS CONSIGNEE',
+            'destination_agent_name' => 'PT. OOCL INDONESIA',
+            'destination_agent_contact' => "WISMA 46 KOTA BNI #2201, 22ND FLOOR\nJL. JEND. SUDIRMAN KAV. 1\nJAKARTA 10220\nPHONE: (62) 21-30405151",
+            'place_of_receipt' => 'YANGPU, CHINA',
+            'port_of_loading' => 'YANGPU, CHINA',
+            'port_of_discharge' => 'JAKARTA, INDONESIA',
+            'place_of_delivery' => 'JAKARTA, INDONESIA',
+            'vessel_name' => 'OOCL LILAC',
+            'voyage_number' => '004E',
+            'movement_type' => 'FCL / FCL',
+            'service_type' => 'CY/CY',
+            'goods_description' => 'LINEAR LOW DENSITY POLYETHYLENE SINOPEC F181CC',
+            'hs_code' => '3901',
+            'package_count' => '6240 BAGS',
+            'container_count_label' => '6 CONTAINER(S)',
+            'gross_weight_kg' => 158028,
+            'measurement_cbm' => 300,
+            'freight_terms' => 'FREIGHT PREPAID',
+            'export_reference' => 'SC# IAT26562',
+            'input_date' => '2026-05-21',
+            'issue_date' => '2026-05-21',
+            'place_of_issue' => 'SHENZHEN',
+            'shipped_on_board_date' => '2026-05-21',
+            'status' => BillOfLading::STATUS_PENDING,
+            'phase' => 'Input',
+            'customer_note' => 'Billing stage in progress.',
+            'note' => 'Billing stage in progress.',
+        ], [
+            ['container_number' => 'CCLU7687950', 'seal_number' => 'OOLKZK3993', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 1],
+            ['container_number' => 'OOCU5123401', 'seal_number' => 'OOLKZK3994', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 2],
+            ['container_number' => 'TCLU8891203', 'seal_number' => 'OOLKZK3995', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 3],
+            ['container_number' => 'FCIU4412098', 'seal_number' => 'OOLKZK3996', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 4],
+            ['container_number' => 'TEMU7788123', 'seal_number' => 'OOLKZK3997', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 5],
+            ['container_number' => 'CBHU3344556', 'seal_number' => 'OOLKZK3998', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 6],
+        ], $admin);
+
+        $workflow->advanceToMilestone($oocl->fresh(), 'send_billing', $admin->id);
+
+        // 6) Synthetic export sample
+        $export = $this->createBl([
+            'customer_id' => $dolpin->id,
+            'bl_number' => 'EXPORT-DPS-2026-001',
+            'booking_number' => 'EXP-BOOK-001',
+            'shipment_type' => BillOfLading::TYPE_EXPORT,
+            'carrier_name' => 'Demo Export Carrier',
+            'bl_document_type' => 'original',
+            'shipment_description' => 'Synthetic export demo for PEB / NPE workflow',
+            'shipper_name' => 'PT DOLPIN PUTRA SEJATI',
+            'shipper_address' => $consigneeAddress,
+            'consignee_name' => 'DEMO OVERSEAS BUYER LTD',
+            'consignee_address' => 'Singapore',
+            'port_of_loading' => 'TANJUNG PRIOK',
+            'port_of_discharge' => 'SINGAPORE',
+            'vessel_name' => 'DEMO VESSEL',
+            'voyage_number' => '001E',
+            'goods_description' => 'Export polymer samples for demo',
+            'hs_code' => '3901.10',
+            'package_count' => '200 BAGS',
+            'container_count_label' => "1 x 20'GP",
+            'gross_weight_kg' => 5200,
+            'measurement_cbm' => 18.5,
+            'input_date' => '2026-06-01',
+            'status' => BillOfLading::STATUS_PENDING,
+            'phase' => 'Input',
+            'customer_note' => 'Export card creation in progress.',
+            'note' => 'Export card creation in progress.',
+        ], [
+            ['container_number' => 'EXPU1234567', 'seal_number' => 'EXPSEAL001', 'container_type' => "20'GP", 'package_count' => '200 BAGS', 'gross_weight_kg' => 5200, 'measurement_cbm' => 18.5, 'sort_order' => 1],
+        ], $admin);
+
+        $workflow->advanceToMilestone($export->fresh(), 'export_card', $admin->id);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  list<array<string, mixed>>  $containers
+     */
+    private function createBl(array $attributes, array $containers, User $admin): BillOfLading
+    {
+        $billOfLading = BillOfLading::query()->create($attributes);
+
+        foreach ($containers as $container) {
+            $billOfLading->containers()->create($container);
+        }
+
+        BillOfLadingUpdate::query()->create([
+            'bill_of_lading_id' => $billOfLading->id,
+            'user_id' => $admin->id,
+            'status' => $billOfLading->status,
+            'phase' => $billOfLading->phase,
+            'milestone_key' => $billOfLading->current_milestone_key,
+            'visibility' => BillOfLadingUpdate::VISIBILITY_CUSTOMER,
+            'note' => 'BL record created from client sample data.',
+        ]);
+
+        return $billOfLading->fresh(['containers', 'milestoneStates']);
+    }
+
+    private function advanceImportThroughLane(
+        BillOfLadingWorkflowService $workflow,
+        BillOfLading $billOfLading,
+        string $lane,
+        string $targetLaneMilestone,
+        int $adminId,
+    ): void {
+        $workflow->advanceToMilestone($billOfLading->fresh(), 'pib_response', $adminId);
+        $workflow->completeCurrentMilestone($billOfLading->fresh(), [
+            'note' => 'PIB response received.',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+        ], $adminId);
+        $workflow->assignCustomsLane($billOfLading->fresh(), $lane, $adminId, 'Lane assigned from customs response.');
+        $workflow->advanceToMilestone($billOfLading->fresh(), $targetLaneMilestone, $adminId);
+    }
+
+    /**
+     * @param  array{dolpin: User, beta: User}  $customers
+     */
+    private function seedVolumeBillOfLadings(User $admin, array $customers): void
+    {
+        $total = $this->volumeRecordCount();
+        $perCustomer = intdiv($total, 2);
+        $origins = ['Jakarta Port', 'Surabaya Port', 'Singapore', 'Tianjin', 'Yangpu'];
+        $destinations = ['Singapore', 'Jakarta', 'Tanjung Priok', 'Manila', 'Bangkok'];
+
+        $index = 1;
+        foreach (['dolpin' => $customers['dolpin'], 'beta' => $customers['beta']] as $key => $customer) {
+            for ($i = 1; $i <= $perCustomer; $i++, $index++) {
+                $origin = $origins[($i - 1) % count($origins)];
+                $destination = $destinations[$i % count($destinations)];
+                $type = $i % 5 === 0 ? BillOfLading::TYPE_EXPORT : BillOfLading::TYPE_IMPORT;
 
                 $billOfLading = BillOfLading::query()->create([
                     'customer_id' => $customer->id,
-                    'bl_number' => sprintf('BL-%s-%04d', $prefix, $index),
-                    'shipment_description' => sprintf(
-                        '%s shipment from %s to %s',
-                        $itemType,
-                        Str::before($origin, ','),
-                        Str::before($destination, ','),
-                    ),
+                    'bl_number' => sprintf('BL-%s-%04d', strtoupper($key === 'dolpin' ? 'DPS' : 'BETA'), $i),
+                    'shipment_type' => $type,
+                    'carrier_name' => 'Volume Demo Carrier',
+                    'shipment_description' => sprintf('Volume demo shipment %d from %s to %s', $i, $origin, $destination),
+                    'port_of_loading' => $origin,
+                    'port_of_discharge' => $destination,
                     'origin' => $origin,
                     'destination' => $destination,
-                    'items_description' => sprintf('%s, %d cartons, mixed commercial cargo', $itemType, $quantity),
-                    'quantity' => $quantity.' cartons',
-                    'gross_weight_kg' => round(800 + ($index * 137.5), 2),
-                    'volume_cbm' => round(4 + ($index * 0.37), 2),
-                    'input_date' => $inputDate->toDateString(),
-                    'status' => $status,
-                    'phase' => $phase,
-                    'gps_tracking_url' => $index % 3 === 0
-                        ? 'https://maps.google.com/?q='.urlencode(Str::before($origin, ','))
-                        : null,
-                    'note' => $note,
-                    'created_at' => $inputDate,
-                    'updated_at' => $now->copy()->subDays($index % 45)->subHours($index % 12),
+                    'goods_description' => 'Mixed commercial cargo for list/filter demos',
+                    'items_description' => 'Mixed commercial cargo for list/filter demos',
+                    'package_count' => (($i * 7) % 450) + 20 .' cartons',
+                    'quantity' => (($i * 7) % 450) + 20 .' cartons',
+                    'gross_weight_kg' => round(800 + ($i * 137.5), 2),
+                    'measurement_cbm' => round(4 + ($i * 0.37), 2),
+                    'volume_cbm' => round(4 + ($i * 0.37), 2),
+                    'input_date' => now()->subDays($i)->toDateString(),
+                    'status' => BillOfLading::STATUSES[$i % count(BillOfLading::STATUSES)],
+                    'phase' => BillOfLading::PHASES[$i % count(BillOfLading::PHASES)],
+                    'gps_tracking_url' => $i % 4 === 0 ? 'https://maps.google.com/?q='.urlencode($destination) : null,
+                    'customer_note' => 'Volume demo record.',
+                    'note' => 'Volume demo record.',
+                ]);
+
+                $billOfLading->containers()->create([
+                    'container_number' => sprintf('%sU%07d', strtoupper(substr($key, 0, 3)), $i),
+                    'seal_number' => sprintf('SEAL%05d', $i),
+                    'container_type' => $i % 2 === 0 ? "40'HC" : "20'GP",
+                    'package_count' => '100 BAGS',
+                    'gross_weight_kg' => 10000,
+                    'measurement_cbm' => 25,
+                    'sort_order' => 1,
                 ]);
 
                 BillOfLadingUpdate::query()->create([
                     'bill_of_lading_id' => $billOfLading->id,
                     'user_id' => $admin->id,
-                    'status' => 'Pending',
-                    'phase' => 'Input',
-                    'note' => 'BL record created for tracking.',
-                    'created_at' => $inputDate,
-                    'updated_at' => $inputDate,
-                ]);
-
-                BillOfLadingUpdate::query()->create([
-                    'bill_of_lading_id' => $billOfLading->id,
-                    'user_id' => $admin->id,
-                    'status' => $status,
-                    'phase' => $phase,
-                    'note' => $note,
-                    'created_at' => $billOfLading->updated_at,
-                    'updated_at' => $billOfLading->updated_at,
+                    'status' => $billOfLading->status,
+                    'phase' => $billOfLading->phase,
+                    'milestone_key' => $billOfLading->current_milestone_key,
+                    'visibility' => BillOfLadingUpdate::VISIBILITY_CUSTOMER,
+                    'note' => 'Volume demo BL created.',
                 ]);
             }
         }

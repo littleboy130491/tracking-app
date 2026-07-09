@@ -2,13 +2,14 @@
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class UserPolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:User');
@@ -29,14 +30,17 @@ class UserPolicy
         return $authUser->can('Update:User');
     }
 
-    public function delete(AuthUser $authUser): bool
+    public function delete(AuthUser $authUser, User $user): bool
     {
-        return $authUser->can('Delete:User');
+        return $authUser->can('Delete:User')
+            && $user->billOfLadings()
+                ->get()
+                ->every(fn ($billOfLading): bool => $billOfLading->canBeDeletedAfterRetention());
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:User');
+        return false;
     }
 
     public function restore(AuthUser $authUser): bool
@@ -44,14 +48,15 @@ class UserPolicy
         return $authUser->can('Restore:User');
     }
 
-    public function forceDelete(AuthUser $authUser): bool
+    public function forceDelete(AuthUser $authUser, User $user): bool
     {
-        return $authUser->can('ForceDelete:User');
+        return $this->delete($authUser, $user)
+            && $authUser->can('ForceDelete:User');
     }
 
     public function forceDeleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('ForceDeleteAny:User');
+        return false;
     }
 
     public function restoreAny(AuthUser $authUser): bool
@@ -68,5 +73,4 @@ class UserPolicy
     {
         return $authUser->can('Reorder:User');
     }
-
 }

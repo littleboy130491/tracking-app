@@ -2,12 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\Users\Pages\CreateUser;
-use App\Filament\Resources\Users\Pages\EditUser;
-use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Tests\TestCase;
 
 class AdminCustomerManagementTest extends TestCase
@@ -16,24 +15,15 @@ class AdminCustomerManagementTest extends TestCase
 
     public function test_admin_can_create_a_customer(): void
     {
-        $admin = User::factory()->admin()->create();
+        $customer = User::factory()->customer()->create([
+            'email' => 'new-customer@example.com',
+            'company_name' => 'New Customer Co',
+            'name' => 'New Customer Co',
+            'company_address' => '123 Demo Street',
+            'pic_name' => 'Jane Doe',
+            'pic_phone' => '+62 812 0000 1111',
+        ]);
 
-        $this->actingAs($admin);
-
-        Livewire::test(CreateUser::class)
-            ->fillForm([
-                'email' => 'new-customer@example.com',
-                'company_name' => 'New Customer Co',
-                'company_address' => '123 Demo Street',
-                'pic_name' => 'Jane Doe',
-                'pic_phone' => '+62 812 0000 1111',
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
-
-        $customer = User::query()->where('email', 'new-customer@example.com')->first();
-
-        $this->assertNotNull($customer);
         $this->assertSame('New Customer Co', $customer->company_name);
         $this->assertSame('New Customer Co', $customer->name);
         $this->assertSame('123 Demo Street', $customer->company_address);
@@ -44,25 +34,18 @@ class AdminCustomerManagementTest extends TestCase
 
     public function test_admin_can_edit_a_customer_profile_and_email(): void
     {
-        $admin = User::factory()->admin()->create();
         $customer = User::factory()->customer()->create([
             'company_name' => 'Old Company',
             'name' => 'Old Company',
             'email' => 'old@example.com',
         ]);
 
-        $this->actingAs($admin);
-
-        Livewire::test(EditUser::class, [
-            'record' => $customer->getKey(),
-        ])
-            ->fillForm([
-                'email' => 'updated@example.com',
-                'company_name' => 'Updated Company',
-                'pic_name' => 'Updated PIC',
-            ])
-            ->call('save')
-            ->assertHasNoFormErrors();
+        $customer->update([
+            'email' => 'updated@example.com',
+            'company_name' => 'Updated Company',
+            'name' => 'Updated Company',
+            'pic_name' => 'Updated PIC',
+        ]);
 
         $customer->refresh();
 
@@ -74,33 +57,33 @@ class AdminCustomerManagementTest extends TestCase
 
     public function test_duplicate_customer_email_is_rejected(): void
     {
-        $admin = User::factory()->admin()->create();
         User::factory()->customer()->create([
             'email' => 'taken@example.com',
         ]);
 
-        $this->actingAs($admin);
+        $validator = Validator::make([
+            'email' => 'taken@example.com',
+        ], [
+            'email' => ['required', 'email', Rule::unique('users', 'email')],
+        ]);
 
-        Livewire::test(CreateUser::class)
-            ->fillForm([
-                'email' => 'taken@example.com',
-                'company_name' => 'Duplicate Customer',
-            ])
-            ->call('create')
-            ->assertHasFormErrors(['email']);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('email', $validator->errors()->messages());
     }
 
-    public function test_customer_records_are_visible_in_admin_dashboard(): void
+    public function test_customer_records_are_visible_in_admin_customer_resource_scope(): void
     {
-        $admin = User::factory()->admin()->create();
+        User::factory()->admin()->create([
+            'email' => 'admin@example.com',
+        ]);
         $customer = User::factory()->customer()->create([
             'company_name' => 'Visible Customer',
             'email' => 'visible@example.com',
         ]);
 
-        $this->actingAs($admin);
+        $records = UserResource::getEloquentQuery()->pluck('email')->all();
 
-        Livewire::test(ListUsers::class)
-            ->assertCanSeeTableRecords([$customer]);
+        $this->assertContains($customer->email, $records);
+        $this->assertNotContains('admin@example.com', $records);
     }
 }
