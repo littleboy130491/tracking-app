@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CustomerDashboardController extends Controller
@@ -28,15 +29,14 @@ class CustomerDashboardController extends Controller
         $filters = [
             'q' => trim((string) $request->query('q')),
             'status' => (string) $request->query('status', ''),
-            'milestone' => (string) $request->query('milestone', ''),
             'shipment_type' => (string) $request->query('shipment_type', ''),
-            'month' => (string) $request->query('month', ''),
             'year' => (string) $request->query('year', ''),
             'per_page' => (string) $perPage,
         ];
 
         $billOfLadings = BillOfLading::query()
             ->whereBelongsTo($customer, 'customer')
+            ->with('milestoneStates')
             ->when($filters['q'] !== '', function ($query) use ($filters) {
                 $query->where(function ($inner) use ($filters): void {
                     $inner->where('bl_number', 'like', "%{$filters['q']}%")
@@ -49,20 +49,9 @@ class CustomerDashboardController extends Controller
                 fn ($query) => $query->where('status', $filters['status']),
             )
             ->when(
-                $filters['milestone'] !== '' && array_key_exists($filters['milestone'], BillOfLading::milestoneOptions()),
-                fn ($query) => $query->where('current_milestone_key', $filters['milestone']),
-            )
-            ->when(
                 $filters['shipment_type'] !== ''
                     && array_key_exists($filters['shipment_type'], config('bl_workflows.shipment_types', [])),
                 fn ($query) => $query->where('shipment_type', $filters['shipment_type']),
-            )
-            ->when(
-                $filters['month'] !== ''
-                    && ctype_digit($filters['month'])
-                    && (int) $filters['month'] >= 1
-                    && (int) $filters['month'] <= 12,
-                fn ($query) => $query->whereMonth('input_date', (int) $filters['month']),
             )
             ->when(
                 $filters['year'] !== '' && ctype_digit($filters['year']),
@@ -72,14 +61,24 @@ class CustomerDashboardController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $yearExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y', input_date)"
+            : 'YEAR(input_date)';
+
         $availableYears = BillOfLading::query()
             ->whereBelongsTo($customer, 'customer')
             ->whereNotNull('input_date')
-            ->get(['input_date'])
-            ->map(fn (BillOfLading $billOfLading): int => $billOfLading->input_date->year)
-            ->unique()
-            ->sortDesc()
-            ->values();
+            ->selectRaw("{$yearExpression} as input_year")
+            ->distinct()
+            ->orderByDesc('input_year')
+            ->pluck('input_year')
+            ->map(fn ($year): int => (int) $year);
+
+        $statusCounts = BillOfLading::query()
+            ->whereBelongsTo($customer, 'customer')
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
 
         return view('customer.dashboard', [
             'billOfLadings' => $billOfLadings,
@@ -87,11 +86,11 @@ class CustomerDashboardController extends Controller
             'filters' => $filters,
             'availableYears' => $availableYears,
             'perPageOptions' => self::PER_PAGE_OPTIONS,
+            'statusCounts' => $statusCounts,
+            'totalCount' => $statusCounts->sum(),
             'hasBlSearch' => $filters['q'] !== '',
             'hasListingFilters' => $filters['status'] !== ''
-                || $filters['milestone'] !== ''
                 || $filters['shipment_type'] !== ''
-                || $filters['month'] !== ''
                 || $filters['year'] !== '',
         ]);
     }
@@ -117,7 +116,7 @@ class CustomerDashboardController extends Controller
 
         return view('customer.bill-of-ladings.show', [
             'billOfLading' => $billOfLading,
-            'timelineNodes' => $this->customerTimelineNodes($billOfLading),
+            'timelineTracks' => $this->customerTimelineTracks($billOfLading),
             'laneClass' => match ($billOfLading->customs_lane) {
                 'green' => 'lane-green',
                 'yellow' => 'lane-yellow',
@@ -128,45 +127,39 @@ class CustomerDashboardController extends Controller
     }
 
     /**
-     * @return Collection<int, array{label: string, state: string}>
+     * @return Collection<int, array{title: string, nodes: Collection<int, array{label: string, state: string}>}>
      */
-    private function customerTimelineNodes(BillOfLading $billOfLading): Collection
+    private function customerTimelineTracks(BillOfLading $billOfLading): Collection
     {
-        return $billOfLading->milestoneStates
+        $visibleMilestones = $billOfLading->milestoneStates
             ->where('customer_visible', true)
-            ->values()
-            ->reduce(function ($nodes, $milestone) {
-                $label = $milestone->displayLabel(true);
-                $lastIndex = $nodes->count() - 1;
-                $last = $nodes->get($lastIndex);
+            ->values();
 
-                if ($last && $last['label'] === $label) {
-                    $last['state'] = $this->mergeTimelineState($last['state'], $milestone->state);
-                    $nodes->put($lastIndex, $last);
+        $processMilestones = $visibleMilestones
+            ->reject(fn ($milestone): bool => $milestone->workflow_key === 'delivery')
+            ->values();
+        $deliveryMilestones = $visibleMilestones
+            ->where('workflow_key', 'delivery')
+            ->values();
 
-                    return $nodes;
-                }
-
-                $nodes->push([
-                    'label' => $label,
+        return collect([
+            [
+                'title' => $billOfLading->shipment_type === BillOfLading::TYPE_EXPORT
+                    ? 'Export process'
+                    : 'Import process',
+                'nodes' => $processMilestones->map(fn ($milestone): array => [
+                    'label' => $milestone->displayLabel(true),
                     'state' => $milestone->state,
-                ]);
-
-                return $nodes;
-            }, collect());
-    }
-
-    private function mergeTimelineState(string $existing, string $incoming): string
-    {
-        if ($existing === 'in_progress' || $incoming === 'in_progress') {
-            return 'in_progress';
-        }
-
-        if ($existing === 'pending' || $incoming === 'pending') {
-            return 'pending';
-        }
-
-        return $existing;
+                ]),
+            ],
+            [
+                'title' => 'Delivery process',
+                'nodes' => $deliveryMilestones->map(fn ($milestone): array => [
+                    'label' => $milestone->displayLabel(true),
+                    'state' => $milestone->state,
+                ]),
+            ],
+        ])->filter(fn (array $track): bool => $track['nodes']->isNotEmpty())->values();
     }
 
     private function guardCustomer(): ?RedirectResponse
@@ -175,7 +168,10 @@ class CustomerDashboardController extends Controller
             return redirect()->route('customer.login');
         }
 
-        abort_unless(Auth::user()->hasRole(User::ROLE_CUSTOMER), 403);
+        abort_unless(
+            Auth::user()->is_active && Auth::user()->hasRole(User::ROLE_CUSTOMER),
+            403,
+        );
 
         return null;
     }

@@ -1,378 +1,383 @@
-# Current App Fit Assessment — BL Tracking Requirements
+# Current Application vs Client Needs - Gap Analysis
 
-Assessment date: 2026-07-09
+Assessment date: 2026-07-10
 
-Scope: compare the current Laravel/Filament customer BL tracking app against the documents in `contexts/`, with no implementation changes.
+Status: implemented. The original findings are retained below as the pre-implementation baseline.
 
-## Source Documents Reviewed
+Scope: compare the application currently at `main` (`37087f0`) with `BRIEFS.md`, every document in `contexts/`, and the client clarification recorded on 2026-07-10 that document upload/download is not required. This is a findings document, not an implementation claim.
 
+## Execution Result
+
+The confirmed-scope plan was executed on 2026-07-10. Document storage and dispatch management were intentionally excluded because the client only requires tracking information and an external GPS link.
+
+Implemented outcomes:
+
+- Milestones now control completion status, shipment type is locked after tracking starts, and cancelled BLs cannot advance accidentally.
+- Delivery activation now requires the primary import/export workflow to be complete.
+- Staff account management supports active state and workflow responsibilities; full BL editing remains supervisor-only.
+- OTP values are hashed, attempts and routes are rate-limited, inactive users are blocked, and demo display remains configurable for Phase 1.
+- Retention uses an immutable deadline, retained BLs are protected at model level, expired deletion is soft, and sensitive changes are audited.
+- OOCL fixtures match the supplied PDF and synthetic statuses no longer contradict milestones.
+- Customer and admin historical queries have targeted indexes; year options are resolved in SQL and admin search includes containers.
+- Customer UI now uses one compact search/filter surface, clear status summaries, responsive shipment rows, and separate process/delivery tracking.
+
+Deployment items that remain external to the codebase:
+
+- Configure the production mail provider and set `CUSTOMER_OTP_DISPLAY=false` and `CUSTOMER_OTP_SEND_EMAIL=true` after Phase 1.
+- Establish production backup/restore monitoring and operational ownership.
+- Confirm whether the client's export wording should say draft PIB or draft PEB; the app currently uses PEB.
+
+Current fit:
+
+| Target | Assessment |
+|---|---|
+| Phase 1 mockup/client walkthrough | Ready |
+| Pilot with real operational users | Ready after mail-provider configuration if displayed OTP is disabled |
+| Production system of record | Application work complete for confirmed scope; deployment controls remain |
+
+## Sources Reviewed
+
+### Client requirements
+
+- `BRIEFS.md`
 - `contexts/Proses Dokumen Ekspor dan Impor.pdf`
-  - Extractable text confirms import, export, and pengiriman/delivery process stages.
 - `contexts/BL KMTCSIN3242091 - PT DOLPIN PUTRA SEJATI419.pdf`
 - `contexts/BL MEDUYF895047 PT DOLPIN PUTRA SEJATI.pdf`
 - `contexts/BL SSLSGJKTCAE9741  - PT DOLPIN PUTRA SEJATI.pdf`
 - `contexts/COSU6394859890.pdf`
 - `contexts/OOLU2327606650 DPS.pdf`
-  - These BL sample PDFs appear to be scanned/image-based. `pdftotext` did not extract useful text, but `DemoDataSeeder` already encodes the five sample BLs and their carriers, routes, cargo, containers, and lane states.
 
-## Short Verdict
+The five BL files are scanned/image PDFs. They were visually inspected rather than treated as extractable text. The process PDF was checked both as text and as rendered pages so its timeline sketches and document icons were included in this assessment.
 
-The current app is a good fit for a Phase 1/client-review BL status tracking demo and already covers much more than the original generic BL tracker.
+### Application areas checked
 
-It can represent the main operational needs from the documents:
+- Laravel routes, authentication controllers, and customer authorization
+- Filament customer and BL resources
+- Models, migrations, policies, workflow configuration, and workflow service
+- Customer dashboard and BL detail views
+- Demo seed data and all automated tests
 
-- customer/admin dashboards
-- passwordless customer OTP login
-- customer data isolation
-- real BL header fields
-- multi-carrier and multi-container BL records
-- import lane branching for SPJH/SPJK/SPJM
-- export milestone tracking
-- delivery/pengiriman milestone tracking
-- customer-visible timeline and GPS link
-- seeded examples based on PT Dolpin Putra Sejati sample BLs
+Verification on 2026-07-10:
 
-It is not yet production-complete for the document process because document attachment handling, role-by-phase controls, retention protection, and exact customer timeline presentation still need work.
+```text
+php artisan test
+57 tests passed, 183 assertions
+```
 
-## What Fits Well
+The sections below retain the original findings for traceability. The execution result above is the authoritative current status.
 
-### 1. Core access model fits the brief
+## Pre-Implementation Requirement Coverage
 
-Current state supports:
+| Client need | Current state | Fit |
+|---|---|---|
+| Admin and customer dashboards | Filament admin plus custom Blade customer portal | Meets functionally |
+| One account per email | Database unique constraint and form validation | Meets |
+| Admin-created customer accounts | Customer Filament resource creates customer role accounts | Meets |
+| Customer passwordless login | Six-digit OTP stored in session and displayed in the form | Meets Phase 1 only |
+| Customer data isolation | Queries are customer-scoped and cross-customer detail returns 404 | Meets |
+| Unique BL number | Database and form uniqueness | Meets |
+| Manage BL header/detail data | Broad BL header, party, route, cargo, and date fields exist | Mostly meets |
+| Multi-container BL | Child table, form repeater, admin/customer display | Meets core need |
+| Import process and lane branching | Pre-lane flow plus SPJH/SPJK/SPJM tails | Mostly meets |
+| Export process | Configured PEB/NPE/export-card workflow | Mostly meets; wording needs confirmation |
+| Delivery process | Milestone track exists | Partial operational fit |
+| Role by phase | Role map and service authorization exist | Partial end-to-end fit |
+| Update history | Milestone and free-form updates are recorded | Partial audit coverage |
+| External GPS URL | Admin field and customer external link | Meets stated need |
+| Document upload/download | Client confirmed this is not required | Meets confirmed scope |
+| Minimum three-year retention | UI/model checks exist, but no durable guarantee | Partial |
+| 30-50 records/day for 3+ years | No load test or production index review | Unproven |
 
-- Filament admin dashboard.
-- Customer dashboard.
-- Admin/password login through Filament.
-- Customer OTP/passwordless login with OTP displayed on the verify form for demo use.
-- Manual customer account creation.
-- Customer-only access to each customer's own BL records.
+## Pre-Implementation P0 Findings
 
-Evidence:
+### 1. Workflow state is not a single source of truth
 
-- `CustomerAuthController` handles OTP request, display, verification, and customer-only login.
-- `CustomerDashboardController` filters BL records by authenticated customer and returns `404` for another customer's BL detail.
-- Customer dashboard tests pass.
+Current behavior:
 
-Fit: good for Phase 1 and demo.
+- `shipment_type` remains editable after creation (`BillOfLadingForm.php:47`), but milestone definitions are seeded only on model creation (`BillOfLading.php:179`). Changing import to export does not rebuild or reject the existing workflow.
+- The BL `status` remains directly editable (`BillOfLadingForm.php:259`).
+- Advance Milestone and Post Progress Update allow any value in `BillOfLading::STATUSES`, including `Completed`, while milestones can still be pending (`AdvanceMilestoneAction.php:31`, `PostProgressUpdateAction.php:25`).
+- `postProgressUpdate()` changes the top-level status without advancing a milestone (`BillOfLading.php:285`).
+- Synthetic volume records are seeded with arbitrary statuses while every new record starts at its first milestone (`DemoDataSeeder.php:477`, `BillOfLadingWorkflowService.php:15`). A record can therefore display `Completed` or `Cancelled` while `receive_docs` is in progress.
 
-### 2. BL data model now matches real BL documents much better than the original demo
+Impact:
 
-The current model/migration supports most fields observed in the sample BLs:
+- Admin lists, customer badges, filters, and timelines can disagree.
+- Changing shipment type can leave an import BL running export metadata or vice versa.
+- Demo records can visibly undermine the client walkthrough.
 
-- BL number, booking number, carrier.
-- shipment type: import/export.
-- BL document type and surrendered flag.
-- shipper, consignee, notify party, destination agent.
-- NPWP.
-- place of receipt, POL, POD, place of delivery.
-- vessel and voyage.
-- movement/service type.
-- goods description, HS code, packages, gross weight, CBM.
-- freight terms, free time notes, export/service references.
-- shipped-on-board, issue date, place of issue.
-- one BL to many containers.
+Acceptance needed:
 
-Fit: good for the five sample BLs and likely enough for similar BLs from other carriers.
+- Define top-level status semantics and derive `Completed` from terminal milestone completion.
+- Treat `On Hold` and `Cancelled` as explicit workflow transitions with resume/cancel rules.
+- Lock `shipment_type` after milestones/history exist, or implement a guarded reset/migration operation.
+- Remove arbitrary phase/status generation from demo factories and seeders.
+- Add invariant tests covering every combination of status, current milestone, lane, and shipment type.
 
-### 3. Multi-container support fits the samples
+### 2. Delivery activation can produce an invalid import sequence
 
-The current app has `bill_of_lading_containers` with:
+Client need:
 
-- container number
-- seal number
-- type
-- package count
-- gross weight
-- CBM
-- tare weight
-- sort order
+- The source document presents import/export processing before the delivery process.
 
-The admin form uses a containers repeater, and the customer detail page renders a container table.
+Current behavior:
 
-Fit: good. This directly addresses the samples with 1, 4, and 6 containers.
+- The Activate Delivery Track action is visible whenever delivery milestones do not yet exist and the user has the delivery role (`ActivateDeliveryTrackAction.php:19`). It does not require the import/export process to reach an approved handoff.
+- The service appends delivery after the current maximum sequence (`BillOfLadingWorkflowService.php:185`).
+- For an import BL, delivery can be appended before `pib_response` is completed and before a customs lane is assigned.
+- If that happens, the later lane branch is appended after delivery because lane milestones also start after the current maximum sequence (`BillOfLadingWorkflowService.php:62`).
 
-### 4. Import workflow mostly fits the process document
+Impact:
 
-The process PDF defines:
+- A valid-looking user action can create `import pre-lane -> delivery -> customs lane tail`.
+- The next active milestone can become delivery while the BL is still awaiting SPJH/SPJK/SPJM processing.
 
-- Penerimaan dok customer
-- Pembuatan draft PIB
-- Proses DO
-- DO Release
-- Proses transfer PIB
-- Pengiriman billing
-- Proses respon PIB
-- Branch to Hijau/Kuning/Merah
+Acceptance needed:
 
-The app has config-driven import pre-lane milestones and lane-specific branches:
+- Confirm the exact handoff milestone with the client.
+- Guard delivery activation on that completed handoff.
+- Add service-level validation, not only action visibility.
+- Add regression tests for early activation on pre-lane, lane, export, completed, and cancelled BLs.
 
-- green/SPJH: SPPB, Pengiriman kontainer
-- yellow/SPJK: SPJK, Submit dokumen, SPPB, Pengiriman kontainer
-- red/SPJM: SPJM, Submit dokumen, Periksa fisik, SPPB, Pengiriman kontainer
+## Pre-Implementation P1 Findings
 
-Fit: good structurally.
+### 3. Role-by-phase is only partially operable
 
-Main caveat: the app currently allows assigning a customs lane whenever an import BL has no lane. It does not enforce that the BL must first reach or complete `pib_response`.
+What already works:
 
-### 5. Export workflow mostly fits the process document
+- Milestones map to workflow roles in `config/bl_workflows.php:29`.
+- `completeCurrentMilestone()`, lane assignment, and delivery activation enforce roles in the service.
+- Tests cover direct service calls with and without a matching role.
 
-The app has an export workflow covering:
+Remaining gaps:
 
-- Penerimaan dokumen customer
-- draft PEB
-- Proses DO
-- Bongkar muat
-- Down to depot
-- Loading shipment
-- Muat container
-- Proses PEB
-- Respon NPE
-- Pembuatan export card
-- Stocking container ke pelabuhan
+- The custom User resource is customer-only (`UserResource.php:54`). There is no staff-user resource for creating operational admins, setting passwords, disabling accounts, or assigning workflow roles.
+- Filament Shield can edit roles, but it does not supply the missing staff account lifecycle.
+- The positive workflow-role test assigns only `workflow_documents`. Such a user cannot access the panel because `User::canAccessPanel()` separately requires `super_admin` or `panel_user` (`User.php:65`). The test proves service authorization, not the real UI workflow.
+- `BillOfLadingPolicy::update()` checks a generic `Update:BillOfLading` permission, not the current milestone role. A staff user with generic update access can edit customer assignment, shipment type, status, GPS URL, containers, and all BL fields outside the phase action rules.
+- `postProgressUpdate()` has no service-level role authorization; its role check is action visibility only.
 
-Fit: good.
+Impact:
 
-Note: the source PDF says "Pembuatan draft PIB" under export, but export normally uses PEB. The app uses `draft_peb`, which is operationally sensible, but this should be confirmed with the client in case they intentionally use different wording.
+- The client cannot administer the phase-responsibility model through the app.
+- Generic edit permission can bypass the intended division of responsibility.
 
-### 6. Delivery/pengiriman track is represented
+Acceptance needed:
 
-The app can append a delivery track with:
+- Staff account management with active/disabled state and role assignment.
+- A documented permission bundle: panel access, resource view, and one or more workflow roles.
+- Server-side authorization for every mutation, including metadata edits and free-form updates.
+- Decide which fields phase admins may edit versus which require a supervisor.
+- End-to-end Filament tests for a real panel user, not only service tests.
 
-- Finalisasi dokumen
-- Proses kartu exim
-- Switch to driver
-- Proses depot
-- Pengambilan container
-- On the way shipment
-- Loading
-- Down container to depot
+### 4. Customer timelines do not match the supplied sketches
 
-Fit: good as a BL-level delivery progress track.
+Current behavior:
 
-Caveat: the source process may eventually require richer delivery data, such as driver assignment, vehicle details, per-container delivery progress, timestamps per delivery step, or GPS per container/driver. The current app only has a single BL-level `gps_tracking_url`.
+- The app exposes nearly all operational milestones in one vertical list.
+- It merges only adjacent milestones with the same customer label (`CustomerDashboardController.php:133`).
+- Import produces `Custom PIB`, `Pick up DO`, then another `Custom PIB` because `transfer_pib` is separated from the first two PIB steps by DO milestones.
+- `Respon PIB` appears even though it is not a node in the client's short customer sketches.
+- The yellow sketch omits billing while the app includes it. This may be a source-document inconsistency that needs a client decision.
+- Import/export and appended delivery are rendered in one progress list; the client document presents the delivery process as a separate track.
 
-### 7. Customer-facing tracking UI exists
+Impact:
 
-The customer BL detail page displays:
+- The implementation is structurally correct but does not reproduce the client-approved visual story.
+- Internal process detail may be exposed when the intended customer view is a summarized timeline.
 
-- status badges
-- lane badge and lane color
-- tracking timeline
-- completed/in-progress/pending icons
-- shipment details
-- container table
-- update history
-- GPS tracking link
+Acceptance needed:
 
-Fit: good for a demo.
+- Confirm whether the sketches are exact customer-facing stages or illustrative only.
+- Create an explicit customer presentation map rather than deduplicating labels opportunistically.
+- Render process and delivery as separate named tracks if the client confirms the source layout.
+- Define timestamps and state wording for each customer node.
 
-Caveat: the PDF sketch suggests a shorter customer-facing timeline. The current timeline exposes every customer-visible milestone, so import labels like `Custom PIB` and `Pick up DO` can appear more than once because multiple internal milestones map to the same customer label.
+### 5. OTP is Phase 1 demo behavior, not production passwordless login
 
-### 8. Seed data strongly supports client review
+What meets Phase 1:
 
-`DemoDataSeeder` includes the five PT Dolpin Putra Sejati sample BLs:
+- The code is displayed on the verification form, exactly as requested while SMTP is not configured.
+- OTP expires after ten minutes and is removed after successful login.
 
-- KMTC `KMTCSIN3242091`
-- MSC `MEDUYF895047`
-- Samudera `SSLSGJKTCAE9741`
-- COSCO `COSU6394859890`
-- OOCL `OOLU2327606650`
+Production gaps:
 
-It also covers:
+- No email is sent; mail is configured to `log`.
+- The raw OTP is stored in session.
+- There is no request throttling, verification-attempt limit, lockout, resend cooldown, or security event log.
+- Different error messages reveal whether an email exists and whether it is an admin/customer account (`CustomerAuthController.php:28`).
+- No test covers replay, rate limiting, brute force, session fixation across OTP requests, or mail delivery.
 
-- green lane completed delivery
-- yellow lane in-progress
-- red lane in-progress
-- pre-lane billing
-- synthetic export workflow
-- extra volume records
+Acceptance needed:
 
-Fit: very good for showing breadth.
+- Mail provider and queue delivery.
+- Hashed one-time challenge with expiry, attempt count, resend cooldown, and route throttles.
+- Non-enumerating login responses.
+- Audit logging and operational handling for delayed/failed email.
 
-## Gaps Before Production
+### 6. Three-year retention is protected only in normal UI paths
 
-### 1. Document attachments are modeled but not usable end to end
+What already works:
 
-There is a `bill_of_lading_documents` table and model, and milestone definitions include `allows_document`.
+- The model calculates a three-year window from `input_date` (`BillOfLading.php:261`).
+- BL and customer delete actions hide deletion while related BLs are in that window.
+- Policies include retention checks and bulk deletion is disabled.
 
-Missing pieces:
+Remaining gaps:
 
-- admin upload UI
-- file storage validation
-- document list/download in admin
-- customer-visible document download UI
-- linking actual uploaded files to milestone chips
+- Filament Shield defines `super_admin` through a `Gate::before` grant (`config/filament-shield.php:71`). That grant can bypass policy checks before `BillOfLadingPolicy::delete()` runs; current UI visibility is therefore carrying part of the retention guarantee.
+- There are no soft deletes, archive state, immutable deletion log, legal hold, backup/restore policy, or scheduled retention verification.
+- `input_date` is editable. The seed data also uses BL issue dates as input dates, so the business meaning of the retention start is unclear.
+- Database cascades can permanently remove milestones, updates, containers, and document metadata when a BL is deleted.
+- Tests check date helper methods, not policy behavior for normal staff and super admin.
 
-Current customer UI only shows a `Doc` chip when a milestone allows documents. That chip does not mean a document exists.
+Impact:
 
-Priority: high if the client expects SPJK, SPJM, SPPB, NPE, export card, or DO documents to be downloadable.
+- The system does not yet demonstrate a durable minimum-retention guarantee.
+- Accidental or privileged deletion may be unrecoverable.
 
-### 2. Role-by-phase is not implemented
+Acceptance needed:
 
-The brief says each admin can be assigned to a phase, and the next admin can update only after the prior phase is complete.
+- Confirm whether retention starts at system intake, BL issue, shipment completion, or last update.
+- Use an immutable retention timestamp and archive/soft-delete behavior.
+- Ensure super-admin authorization cannot bypass the business retention rule.
+- Add deletion audit, backup/restore requirements, and policy-level tests.
 
-Current state:
+### 7. Audit history does not cover important BL changes
 
-- generic permissions/policies exist through Filament Shield.
-- admin actions are not restricted by milestone key, shipment type, lane, or role ownership.
-- any panel user with update permission could advance milestones unless higher-level permissions prevent page access.
+Current behavior:
 
-Priority: high for real operations, medium for demo.
+- Milestone completions and free-form progress updates write history.
+- The edit page adds history only when legacy `status`, `phase`, or `note` changes (`EditBillOfLading.php:42`).
+- Changes to customer assignment, BL number, shipment type, customs-related fields, GPS URL, `customer_note`, `internal_note`, containers, weights, and parties are not audited.
 
-### 3. Workflow engine and legacy phase field can diverge
+Impact:
 
-The app retains old generic `phase` values:
+- A user can move a BL to another customer or alter operational/legal data without a durable before/after record.
+- This weakens confidentiality investigation and operational accountability.
 
-- Input
-- Customs
-- Transit
-- Delivery
-- Closed
+Acceptance needed:
 
-The workflow engine also stores real milestone states.
+- Define audited fields with the client.
+- Record actor, timestamp, before/after values, and reason for sensitive changes.
+- Treat customer reassignment and shipment-type changes as privileged operations.
 
-Risk:
+### 8. Delivery is a milestone list, not a complete delivery operation
 
-- admin can still post free-form progress updates using generic phases.
-- list filters still filter by generic `phase`, not by workflow milestone.
-- status/phase edits can produce records that do not match the milestone state.
+The client document names driver/depot/container handoffs. The current app stores only milestone state plus one BL-level GPS URL.
 
-Priority: medium-high. Acceptable for transition/demo, but production should make milestones the source of truth.
+Missing if the client expects operational dispatch:
 
-### 4. Lane assignment lacks process guard
-
-Current action visibility only checks:
-
-- shipment type is import
-- customs lane is blank
-
-It does not require `pib_response` to be completed first.
-
-Priority: medium-high. The process document makes lane assignment a response after PIB processing.
-
-### 5. Customer timeline needs presentation refinement
-
-The app's customer labels are useful but not yet exactly aligned to the sketch.
-
-Examples:
-
-- `receive_docs`, `draft_pib`, and `transfer_pib` can all appear as `Custom PIB`.
-- `process_do` and `do_release` can both appear as `Pick up DO`.
-- document icon/chip does not indicate actual uploaded document availability.
-
-Priority: medium. It affects client perception more than data integrity.
-
-### 6. Retention is not enforced
-
-The brief requires minimum 3-year retention.
-
-Current state:
-
-- no automatic purge, which is good.
-- but admin bulk delete exists.
-- no retention policy, archive flag, delete guard, or audit around deletion.
-
-Priority: medium for production, low for Phase 1 demo.
-
-### 7. Field visibility rules are implicit
-
-Current app shows many BL details to customers and keeps some fields admin-only by omission, not by a central field visibility policy.
-
-Examples:
-
-- internal note is not shown to customers.
-- customer-visible updates are filtered.
-- customer-visible documents are filtered, but document UI is incomplete.
-- destination agent fields are collected in admin but not shown to customer.
-
-Priority: medium. Confirm with client which BL fields should be visible to customers.
-
-### 8. Delivery track may need operational details
-
-The process document lists delivery stages, but real logistics use may require:
-
-- driver name
+- driver identity and contact
 - truck/plate number
-- depot references
-- per-container pickup/drop-off state
-- timestamps per delivery step
-- GPS URL per truck or per container
+- depot reference and gate data
+- planned/actual pickup and delivery timestamps
+- proof of delivery
+- per-container delivery state for a multi-container BL
+- GPS URL per vehicle/container or tracking-link history
 
-Current app is BL-level only.
+Decision needed:
 
-Priority: depends on client expectation for "tracking GPS eksternal" and delivery operations.
+- If the app only links to an external GPS platform, the current BL-level URL meets the brief.
+- If the app is expected to manage trucking work, this requires a delivery/dispatch domain rather than more fields on the BL record.
 
-### 9. No PDF import/OCR workflow
+### 9. Seed data is not fully faithful to the supplied BLs
 
-The app does not parse or import BL PDFs. Admins must enter BL data manually.
+Examples:
 
-This is acceptable if the requirement is manual admin entry, but it will not automatically ingest scanned carrier BLs.
+- The OOCL source lists six containers: `CCLU7687950`, `FFAU3320525`, `FFAU3136821`, `CSNU7931556`, `FFAU5965864`, and `OOLU6751921`.
+- The seeder preserves only `CCLU7687950`; the other five container numbers and several seals are invented (`DemoDataSeeder.php:373`).
+- The volume demo assigns arbitrary top-level statuses that can conflict with first-milestone progress.
+- `EXPORT-DPS-2026-001` is synthetic and should remain clearly labeled as such because no export BL sample was supplied.
 
-Priority: low unless client expects upload-to-extract behavior.
+Impact:
 
-## Verification Results
+- Searching by a real OOCL container from the supplied PDF will fail for five of six containers.
+- Inconsistent volume data can make a correct screen appear logically broken during the demo.
 
-Commands run:
+Acceptance needed:
 
-- `pdftotext contexts/*.pdf -`
-- `pdfinfo contexts/*.pdf`
-- `./vendor/bin/phpunit tests/Feature/BillOfLadingWorkflowTest.php --testdox`
-- individual PHPUnit files
-- `php artisan test`
-- `./vendor/bin/phpunit --testdox`
+- Reconcile every seeded real sample against its PDF.
+- Add fixture assertions for all BL numbers, container/seal numbers, totals, routes, and dates.
+- Generate synthetic records through the workflow service so status and milestone state agree.
 
-Passing targeted tests:
+## Pre-Implementation P2 Findings
 
-- `tests/Feature/AdminAccessTest.php`: 3 tests passed.
-- `tests/Feature/BillOfLadingModelTest.php`: 3 tests passed.
-- `tests/Feature/BillOfLadingWorkflowTest.php`: 4 tests passed.
-- `tests/Feature/CustomerDashboardTest.php`: 11 tests passed.
-- `tests/Feature/CustomerOtpLoginTest.php`: 4 tests passed.
-- `tests/Feature/DemoSeederTest.php`: 2 tests passed.
-- `tests/Feature/ExampleTest.php`: 1 test passed.
-- `tests/Unit/ExampleTest.php`: 1 test passed.
+### 10. Per-container cargo detail exists in the schema but not the form
 
-Blocked verification:
+- `BillOfLadingContainer` supports `goods_description`.
+- The Filament container repeater does not expose it (`BillOfLadingForm.php:211`).
+- The MSC rider contains per-container cargo, brand/grade, quantity, HS code, tare, weight, and measurement.
 
-- `php artisan test` exits with signal 4.
-- full `./vendor/bin/phpunit --testdox` exits with code 132 / illegal instruction.
-- The crash is reproducible on Filament/Livewire admin tests including:
-  - `tests/Feature/AdminBillOfLadingManagementTest.php`
-  - `tests/Feature/AdminCustomerManagementTest.php`
-  - `tests/Feature/BillOfLadingAdminHistoryTest.php`
+Confirm whether per-container cargo must be captured or whether the BL-level cargo summary is sufficient. If required, add the input and decide whether HS code/marks also belong at container level.
 
-Interpretation:
+### 11. Three-year volume and historical search are not performance-validated
 
-- Customer auth/dashboard, model, workflow, and seeder coverage are passing.
-- Full admin UI test verification is currently blocked by a PHP/runtime/package crash, not a normal assertion failure.
+At 30-50 BLs/day, three years is approximately 32,850-54,750 BL records before child rows and history.
 
-## Recommendation
+Current concerns:
 
-Proceed with the current app as the Phase 1 review baseline. It is close enough to the documents to demonstrate the intended BL tracking concept.
+- The demo load test seeds 300 volume records, not a three-year dataset.
+- Common filter columns such as `status`, `current_milestone_key`, `shipment_type`, `customs_lane`, `input_date`, and `updated_at` have no explicit composite/index strategy in the client-workflow migration.
+- Available-year filters load all matching `input_date` values into PHP on each request (`CustomerDashboardController.php:75`, `BillOfLadingsTable.php:120`).
+- Contains searches (`%term%`) will not benefit from a normal prefix index.
+- Admin search does not include container number even though customer search does.
 
-Before calling it production-ready, prioritize:
+This volume is reasonable for Laravel and a relational database, but readiness should be proven with production-like data, query plans, indexes, pagination, backups, and retention/archival tests.
 
-1. Add real milestone document upload/download.
-2. Make milestone states the source of truth and reduce legacy phase drift.
-3. Enforce lane assignment only after PIB response.
-4. Add role-by-phase/milestone authorization.
-5. Refine the customer timeline into the exact short labels from the client sketch.
-6. Add retention/delete protection for the 3-year requirement.
-7. Resolve the Filament/Livewire admin test crash and restore full test-suite verification.
+### 12. Customer field visibility needs explicit client approval
 
-## Implementation Follow-up — 2026-07-09
+The app correctly hides internal notes and admin-only update history by implementation, but there is no central visibility policy for BL fields. Confirm whether customers may see:
 
-The identified gaps have been addressed in the app:
+- shipper/consignee/notify-party details
+- NPWP and agent contacts
+- freight terms and references
+- container weights/tare
+- staff names in update history
 
-- Real milestone documents: added admin upload action, private storage metadata, guarded admin/customer download routes, customer document list, and real document links on the customer timeline.
-- Role-by-milestone controls: added config-driven workflow roles and service-level authorization for milestone advance, customs lane assignment, delivery activation, and milestone document upload.
-- Workflow source of truth: legacy phase editing was removed from operational update paths; free-form updates now preserve the active workflow milestone/phase, and customer/admin filters use `current_milestone_key`.
-- Customs lane guard: lane assignment now requires completed `pib_response`.
-- Customer timeline: consecutive duplicate customer labels are grouped, lane coloring remains, and document indicators now distinguish uploaded files from pending documents.
-- Retention protection: BL/customer delete policies and admin destructive actions now respect the configured 3-year retention window; bulk delete was removed for retained records.
-- Test crash: Filament Livewire component tests that triggered PHP signal 4 were replaced with behavior-level tests for the same admin capabilities.
+Visibility should be explicit and tested rather than determined only by whether a Blade template happens to render a field.
 
-Verification after the fixes:
+### 13. Export terminology conflicts in the source
 
-- `php artisan test` passes: 49 tests, 155 assertions.
-- `./vendor/bin/pint --dirty` was run before the final test pass.
+The client process PDF says `Pembuatan draft PIB` under export, while the later step correctly says PEB and the app uses `draft_peb`. PEB is operationally plausible for export, but the wording must be confirmed rather than silently corrected.
+
+### 14. Customer portal does not use Laravel Breeze
+
+`BRIEFS.md` names Breeze for the customer dashboard. The current portal uses custom controllers and Blade views and does not install Breeze.
+
+There is no functional gap in Phase 1, and replacing working auth only to match a scaffold name would add risk. Treat this as a contractual/architecture clarification, not a rebuild requirement, unless the client explicitly requires Breeze-generated code.
+
+## Confirmed Non-Gaps
+
+The following older findings are no longer accurate for the current code:
+
+- Customs lane assignment is guarded until `pib_response` is completed.
+- Import, export, and delivery milestone definitions exist.
+- Workflow role mapping and service-level checks exist for milestone advance, lane assignment, and delivery activation.
+- Customer timeline labels collapse adjacent duplicates, although the exact client presentation still needs work.
+- Three-year retention helper and UI deletion checks exist, although they are not yet a durable production guarantee.
+- Full test execution is not blocked: all 48 current tests pass.
+
+Also not a current requirement gap:
+
+- Document upload/download is intentionally absent. The client confirmed that the tracking app only needs shipment information and the external GPS tracking link. Document icons in the process PDF do not imply an in-app document repository.
+- Automatic OCR/PDF extraction is absent, but the brief explicitly expects manual admin entry.
+- A GPS provider API is absent, but the brief asks for an external tracking URL.
+
+## Executed Closure Order
+
+1. Completed: enforce workflow invariants for shipment type, status, lane, and delivery sequencing.
+2. Completed: correct the real PDF fixtures and inconsistent synthetic demo statuses.
+3. Completed: add staff account lifecycle and close generic-edit authorization bypasses.
+4. Completed: simplify customer process/delivery timelines and separate their presentation.
+5. Completed in application: harden OTP and retention; production mail remains environment configuration.
+6. Completed for confirmed scope: audit sensitive changes and keep delivery at information plus external GPS URL.
+7. Completed in application: add indexes and SQL-based historical filters; backup/restore remains deployment operations.
+
+## Client Decisions Required
+
+1. Is the customer timeline in the PDF exact, or may it expose every internal milestone?
+2. Should import/export processing and delivery appear as separate tracks?
+3. Is export draft preparation called PIB or PEB in the client's actual process?
+4. Which BL fields and staff identities may a customer see?
+5. After Phase 1, should OTP be email-only, or is another delivery channel required?

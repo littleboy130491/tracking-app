@@ -32,7 +32,8 @@ class BillOfLadingWorkflowService
         $billOfLading->forceFill([
             'current_milestone_key' => $first?->milestone_key,
             'phase' => $first?->label ?? $billOfLading->phase,
-        ])->save();
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+        ])->saveQuietly();
     }
 
     public function assignCustomsLane(BillOfLading $billOfLading, string $lane, ?int $userId = null, ?string $note = null): void
@@ -106,6 +107,10 @@ class BillOfLadingWorkflowService
     public function completeCurrentMilestone(BillOfLading $billOfLading, array $attributes = [], ?int $userId = null): BillOfLadingMilestoneState
     {
         return DB::transaction(function () use ($billOfLading, $attributes, $userId): BillOfLadingMilestoneState {
+            if ($billOfLading->status === BillOfLading::STATUS_CANCELLED) {
+                throw new InvalidArgumentException('A cancelled BL must be resumed before its milestone can advance.');
+            }
+
             $current = $billOfLading->milestoneStates()
                 ->where('state', BillOfLadingMilestoneState::STATE_IN_PROGRESS)
                 ->orderBy('sequence')
@@ -145,7 +150,7 @@ class BillOfLadingWorkflowService
                 $billOfLading->forceFill([
                     'current_milestone_key' => $next->milestone_key,
                     'phase' => $next->label,
-                    'status' => $attributes['status'] ?? BillOfLading::STATUS_IN_PROGRESS,
+                    'status' => BillOfLading::STATUS_IN_PROGRESS,
                     'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
                     'note' => $attributes['note'] ?? $billOfLading->note,
                 ])->save();
@@ -156,7 +161,7 @@ class BillOfLadingWorkflowService
                 $billOfLading->forceFill([
                     'current_milestone_key' => $current->milestone_key,
                     'phase' => 'Awaiting customs lane',
-                    'status' => $attributes['status'] ?? BillOfLading::STATUS_IN_PROGRESS,
+                    'status' => BillOfLading::STATUS_IN_PROGRESS,
                     'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
                     'note' => $attributes['note'] ?? $billOfLading->note,
                 ])->save();
@@ -164,7 +169,7 @@ class BillOfLadingWorkflowService
                 $billOfLading->forceFill([
                     'current_milestone_key' => $current->milestone_key,
                     'phase' => $current->label,
-                    'status' => $attributes['status'] ?? BillOfLading::STATUS_COMPLETED,
+                    'status' => BillOfLading::STATUS_COMPLETED,
                     'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
                     'note' => $attributes['note'] ?? $billOfLading->note,
                 ])->save();
@@ -186,6 +191,10 @@ class BillOfLadingWorkflowService
     {
         if ($billOfLading->milestoneStates()->where('workflow_key', 'delivery')->exists()) {
             return;
+        }
+
+        if (! $this->canActivateDeliveryTrack($billOfLading)) {
+            throw new InvalidArgumentException('Delivery can only start after the primary shipment workflow is complete.');
         }
 
         $this->authorizeMilestone($userId, 'finalize_docs');
@@ -350,6 +359,64 @@ class BillOfLadingWorkflowService
             ->where('milestone_key', 'pib_response')
             ->where('state', BillOfLadingMilestoneState::STATE_COMPLETED)
             ->exists();
+    }
+
+    public function canActivateDeliveryTrack(BillOfLading $billOfLading): bool
+    {
+        if (
+            $billOfLading->status === BillOfLading::STATUS_CANCELLED
+            || $billOfLading->milestoneStates()->where('workflow_key', 'delivery')->exists()
+        ) {
+            return false;
+        }
+
+        $requiredMilestone = $billOfLading->shipment_type === BillOfLading::TYPE_EXPORT
+            ? 'stock_to_port'
+            : 'deliver_container';
+
+        return $billOfLading->milestoneStates()
+            ->where('milestone_key', $requiredMilestone)
+            ->where('state', BillOfLadingMilestoneState::STATE_COMPLETED)
+            ->exists();
+    }
+
+    /**
+     * @param  array{status: string, note?: string|null, visibility?: string}  $attributes
+     */
+    public function postProgressUpdate(
+        BillOfLading $billOfLading,
+        array $attributes,
+        ?int $userId = null,
+    ): BillOfLadingUpdate {
+        $allowedStatuses = [
+            BillOfLading::STATUS_IN_PROGRESS,
+            BillOfLading::STATUS_ON_HOLD,
+            BillOfLading::STATUS_CANCELLED,
+        ];
+
+        if (! in_array($attributes['status'], $allowedStatuses, true)) {
+            throw new InvalidArgumentException('Progress updates cannot set this BL status.');
+        }
+
+        $this->authorizeMilestone($userId, $billOfLading->current_milestone_key);
+
+        return DB::transaction(function () use ($billOfLading, $attributes, $userId): BillOfLadingUpdate {
+            $billOfLading->update([
+                'status' => $attributes['status'],
+                'note' => $attributes['note'] ?? null,
+                'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
+            ]);
+
+            return $billOfLading->updates()->create([
+                'user_id' => $userId,
+                'status' => $attributes['status'],
+                'phase' => $billOfLading->phase,
+                'milestone_key' => $billOfLading->current_milestone_key,
+                'customs_lane' => $billOfLading->customs_lane,
+                'visibility' => $attributes['visibility'] ?? BillOfLadingUpdate::VISIBILITY_CUSTOMER,
+                'note' => $attributes['note'] ?? null,
+            ]);
+        });
     }
 
     public function userCanManageCurrentMilestone(User $user, BillOfLading $billOfLading): bool

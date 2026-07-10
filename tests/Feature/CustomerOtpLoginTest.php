@@ -20,7 +20,7 @@ class CustomerOtpLoginTest extends TestCase
             'email' => $customer->email,
         ])->assertRedirectToRoute('customer.otp.show');
 
-        $otp = session('customer_otp.code');
+        $otp = session('customer_otp_demo_code');
 
         $this->get(route('customer.otp.show'))
             ->assertOk()
@@ -59,7 +59,7 @@ class CustomerOtpLoginTest extends TestCase
         $this->post(route('customer.otp.request'), [
             'email' => 'missing@example.com',
         ])->assertSessionHasErrors([
-            'email' => 'Email not found. Use the email address registered by your admin.',
+            'email' => 'We could not send a code to this address. Contact your administrator.',
         ]);
     }
 
@@ -72,7 +72,36 @@ class CustomerOtpLoginTest extends TestCase
         $this->post(route('customer.otp.request'), [
             'email' => $admin->email,
         ])->assertSessionHasErrors([
-            'email' => 'This email is not registered as a customer account.',
+            'email' => 'We could not send a code to this address. Contact your administrator.',
         ]);
+    }
+
+    public function test_otp_is_invalidated_after_five_wrong_attempts(): void
+    {
+        $customer = User::factory()->customer()->create(['email' => 'customer@example.com']);
+
+        $this->post(route('customer.otp.request'), ['email' => $customer->email]);
+
+        foreach (range(1, 4) as $attempt) {
+            $this->post(route('customer.otp.verify'), ['otp' => '000000'])
+                ->assertSessionHasErrors('otp');
+        }
+
+        $this->post(route('customer.otp.verify'), ['otp' => '000000'])
+            ->assertRedirectToRoute('customer.login')
+            ->assertSessionHasErrors('email');
+
+        $this->assertNull(session('customer_otp'));
+    }
+
+    public function test_inactive_customer_cannot_request_otp(): void
+    {
+        $customer = User::factory()->customer()->create([
+            'email' => 'inactive@example.com',
+            'is_active' => false,
+        ]);
+
+        $this->post(route('customer.otp.request'), ['email' => $customer->email])
+            ->assertSessionHasErrors('email');
     }
 }

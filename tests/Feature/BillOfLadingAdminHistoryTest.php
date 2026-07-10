@@ -118,4 +118,28 @@ class BillOfLadingAdminHistoryTest extends TestCase
             'note' => 'Documents received.',
         ]);
     }
+
+    public function test_sensitive_bl_edits_are_recorded_in_the_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $billOfLading = BillOfLading::factory()->create([
+            'gps_tracking_url' => null,
+        ])->refresh();
+
+        $this->actingAs($admin);
+        $billOfLading->update([
+            'gps_tracking_url' => 'https://tracking.example.com/shipment/100',
+        ]);
+
+        $audit = $billOfLading->audits()
+            ->where('event', 'updated')
+            ->where('user_id', $admin->id)
+            ->firstOrFail();
+
+        $this->assertArrayHasKey('gps_tracking_url', $audit->changes);
+        $this->assertSame(
+            'https://tracking.example.com/shipment/100',
+            $audit->changes['gps_tracking_url']['new'],
+        );
+    }
 }

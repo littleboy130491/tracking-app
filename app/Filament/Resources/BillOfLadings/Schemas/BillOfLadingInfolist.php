@@ -176,6 +176,31 @@ class BillOfLadingInfolist
                             ])
                             ->columns(3),
                     ]),
+                Section::make('Audit Log')
+                    ->schema([
+                        RepeatableEntry::make('audits')
+                            ->label('')
+                            ->placeholder('No audited changes yet.')
+                            ->schema([
+                                TextEntry::make('created_at')
+                                    ->label('Changed')
+                                    ->dateTime(),
+                                TextEntry::make('user.name')
+                                    ->label('Changed By')
+                                    ->placeholder('System'),
+                                TextEntry::make('event')
+                                    ->label('Event')
+                                    ->badge(),
+                                TextEntry::make('changes')
+                                    ->label('Changes')
+                                    ->formatStateUsing(fn ($state): string => collect($state ?? [])
+                                        ->keys()
+                                        ->join(', '))
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(3),
+                    ])
+                    ->collapsed(),
             ]);
     }
 }

@@ -174,6 +174,9 @@ class DemoDataSeeder extends Seeder
         ], $admin);
 
         $this->advanceImportThroughLane($workflow, $kmtc, 'green', 'deliver_container', $admin->id);
+        $workflow->completeCurrentMilestone($kmtc->fresh(), [
+            'note' => 'Import processing completed; ready for delivery tracking.',
+        ], $admin->id);
         $workflow->activateDeliveryTrack($kmtc->fresh(), $admin->id, 'Delivery track started after SPPB.');
         $workflow->advanceToMilestone($kmtc->fresh(), 'down_container_depot', $admin->id);
         $workflow->completeCurrentMilestone($kmtc->fresh(), [
@@ -371,12 +374,12 @@ class DemoDataSeeder extends Seeder
             'customer_note' => 'Billing stage in progress.',
             'note' => 'Billing stage in progress.',
         ], [
-            ['container_number' => 'CCLU7687950', 'seal_number' => 'OOLKZK3993', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 1],
-            ['container_number' => 'OOCU5123401', 'seal_number' => 'OOLKZK3994', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 2],
-            ['container_number' => 'TCLU8891203', 'seal_number' => 'OOLKZK3995', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 3],
-            ['container_number' => 'FCIU4412098', 'seal_number' => 'OOLKZK3996', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 4],
-            ['container_number' => 'TEMU7788123', 'seal_number' => 'OOLKZK3997', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 5],
-            ['container_number' => 'CBHU3344556', 'seal_number' => 'OOLKZK3998', 'container_type' => "40'HC", 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 6],
+            ['container_number' => 'CCLU7687950', 'seal_number' => 'OOLKZK3993', 'container_type' => '40HQ', 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 1],
+            ['container_number' => 'FFAU3320525', 'seal_number' => 'OOLKZK3992', 'container_type' => '40HQ', 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 2],
+            ['container_number' => 'FFAU3136821', 'seal_number' => 'OOLKZK3996', 'container_type' => '40HQ', 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 3],
+            ['container_number' => 'CSNU7931556', 'seal_number' => 'OOLKZK3994', 'container_type' => '40HQ', 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 4],
+            ['container_number' => 'FFAU5965864', 'seal_number' => 'OOLKZK3995', 'container_type' => '40HQ', 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 5],
+            ['container_number' => 'OOLU6751921', 'seal_number' => 'OOLKZK3997', 'container_type' => '40HQ', 'package_count' => '1040 BAGS', 'gross_weight_kg' => 26338, 'measurement_cbm' => 50, 'sort_order' => 6],
         ], $admin);
 
         $workflow->advanceToMilestone($oocl->fresh(), 'send_billing', $admin->id);
@@ -492,8 +495,8 @@ class DemoDataSeeder extends Seeder
                     'measurement_cbm' => round(4 + ($i * 0.37), 2),
                     'volume_cbm' => round(4 + ($i * 0.37), 2),
                     'input_date' => now()->subDays($i)->toDateString(),
-                    'status' => BillOfLading::STATUSES[$i % count(BillOfLading::STATUSES)],
-                    'phase' => BillOfLading::PHASES[$i % count(BillOfLading::PHASES)],
+                    'status' => BillOfLading::STATUS_IN_PROGRESS,
+                    'phase' => 'Input',
                     'gps_tracking_url' => $i % 4 === 0 ? 'https://maps.google.com/?q='.urlencode($destination) : null,
                     'customer_note' => 'Volume demo record.',
                     'note' => 'Volume demo record.',
@@ -518,6 +521,20 @@ class DemoDataSeeder extends Seeder
                     'visibility' => BillOfLadingUpdate::VISIBILITY_CUSTOMER,
                     'note' => 'Volume demo BL created.',
                 ]);
+
+                if ($i % 11 === 0) {
+                    $workflow = app(BillOfLadingWorkflowService::class);
+                    $workflow->postProgressUpdate($billOfLading->fresh(), [
+                        'status' => BillOfLading::STATUS_CANCELLED,
+                        'note' => 'Shipment cancelled in the volume demo.',
+                    ], $admin->id);
+                } elseif ($i % 7 === 0) {
+                    $workflow = app(BillOfLadingWorkflowService::class);
+                    $workflow->postProgressUpdate($billOfLading->fresh(), [
+                        'status' => BillOfLading::STATUS_ON_HOLD,
+                        'note' => 'Shipment temporarily on hold in the volume demo.',
+                    ], $admin->id);
+                }
             }
         }
     }
@@ -531,6 +548,14 @@ class DemoDataSeeder extends Seeder
         ]);
 
         Role::findByName(User::ROLE_ADMIN)->syncPermissions(Permission::query()->pluck('name'));
+
+        $staffViewPermissions = Permission::query()
+            ->whereIn('name', ['ViewAny:BillOfLading', 'View:BillOfLading'])
+            ->get();
+
+        foreach (User::WORKFLOW_ROLES as $workflowRole) {
+            Role::findByName($workflowRole)->syncPermissions($staffViewPermissions);
+        }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

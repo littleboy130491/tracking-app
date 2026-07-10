@@ -23,7 +23,18 @@ class PostProgressUpdateAction
             ->modalSubmitActionLabel('Post update')
             ->schema([
                 Select::make('status')
-                    ->options(array_combine(BillOfLading::STATUSES, BillOfLading::STATUSES))
+                    ->options(array_combine(
+                        [
+                            BillOfLading::STATUS_IN_PROGRESS,
+                            BillOfLading::STATUS_ON_HOLD,
+                            BillOfLading::STATUS_CANCELLED,
+                        ],
+                        [
+                            BillOfLading::STATUS_IN_PROGRESS,
+                            BillOfLading::STATUS_ON_HOLD,
+                            BillOfLading::STATUS_CANCELLED,
+                        ],
+                    ))
                     ->required(),
                 Select::make('visibility')
                     ->label('Visibility')

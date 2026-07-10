@@ -36,6 +36,7 @@ class UserFactory extends Factory
             'pic_name' => null,
             'pic_phone' => null,
             'last_login_at' => null,
+            'is_active' => true,
         ];
     }
 

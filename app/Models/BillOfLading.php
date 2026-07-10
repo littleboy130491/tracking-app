@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 #[Fillable([
     'bl_number',
@@ -53,6 +55,7 @@ use Illuminate\Support\Carbon;
     'freight_terms',
     'export_reference',
     'input_date',
+    'retention_until',
     'issue_date',
     'place_of_issue',
     'shipped_on_board_date',
@@ -68,7 +71,7 @@ use Illuminate\Support\Carbon;
 class BillOfLading extends Model
 {
     /** @use HasFactory<BillOfLadingFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const TYPE_IMPORT = 'import';
 
@@ -111,6 +114,7 @@ class BillOfLading extends Model
     {
         return [
             'input_date' => 'date',
+            'retention_until' => 'date',
             'issue_date' => 'date',
             'shipped_on_board_date' => 'date',
             'bl_surrendered' => 'boolean',
@@ -123,6 +127,40 @@ class BillOfLading extends Model
     protected static function booted(): void
     {
         static::saving(function (BillOfLading $billOfLading): void {
+            if (
+                $billOfLading->exists
+                && $billOfLading->isDirty('shipment_type')
+                && $billOfLading->milestoneStates()->exists()
+            ) {
+                throw ValidationException::withMessages([
+                    'shipment_type' => 'Shipment type cannot be changed after workflow tracking has started.',
+                ]);
+            }
+
+            if (blank($billOfLading->retention_until)) {
+                $inputDate = Carbon::parse($billOfLading->input_date ?? today())->startOfDay();
+                $retentionStart = $inputDate->greaterThan(today()) ? $inputDate : today();
+                $billOfLading->retention_until = $retentionStart->addYears(
+                    (int) config('bl_workflows.retention_years', 3)
+                );
+            }
+
+            if (
+                $billOfLading->exists
+                && $billOfLading->status === self::STATUS_COMPLETED
+                && $billOfLading->isDirty('status')
+                && $billOfLading->milestoneStates()
+                    ->whereIn('state', [
+                        BillOfLadingMilestoneState::STATE_PENDING,
+                        BillOfLadingMilestoneState::STATE_IN_PROGRESS,
+                    ])
+                    ->exists()
+            ) {
+                throw ValidationException::withMessages([
+                    'status' => 'A BL can only be completed after all active workflow milestones are complete.',
+                ]);
+            }
+
             if (blank($billOfLading->port_of_loading) && filled($billOfLading->origin)) {
                 $billOfLading->port_of_loading = $billOfLading->origin;
             }
@@ -182,6 +220,39 @@ class BillOfLading extends Model
             }
 
             app(BillOfLadingWorkflowService::class)->seedInitialMilestones($billOfLading);
+
+            $billOfLading->recordAudit('created', [
+                'record' => ['old' => null, 'new' => $billOfLading->attributesToArray()],
+            ]);
+        });
+
+        static::updated(function (BillOfLading $billOfLading): void {
+            $changes = collect($billOfLading->getChanges())
+                ->except(['updated_at'])
+                ->mapWithKeys(fn (mixed $value, string $key): array => [
+                    $key => [
+                        'old' => $billOfLading->getRawOriginal($key),
+                        'new' => $value,
+                    ],
+                ])
+                ->all();
+
+            if ($changes !== []) {
+                $billOfLading->recordAudit('updated', $changes);
+            }
+        });
+
+        static::deleting(function (BillOfLading $billOfLading): void {
+            if ($billOfLading->isWithinRetentionWindow()) {
+                throw ValidationException::withMessages([
+                    'retention' => 'This BL is retained until '.$billOfLading->retentionExpiresAt()?->toDateString().'.',
+                ]);
+            }
+
+            $billOfLading->recordAudit(
+                $billOfLading->isForceDeleting() ? 'force_deleted' : 'deleted',
+                ['deleted_at' => ['old' => null, 'new' => now()->toIso8601String()]],
+            );
         });
     }
 
@@ -215,6 +286,14 @@ class BillOfLading extends Model
     public function milestoneStates(): HasMany
     {
         return $this->hasMany(BillOfLadingMilestoneState::class)->orderBy('sequence');
+    }
+
+    /**
+     * @return HasMany<BillOfLadingAudit, $this>
+     */
+    public function audits(): HasMany
+    {
+        return $this->hasMany(BillOfLadingAudit::class)->latest('created_at');
     }
 
     public function currentMilestone(): ?BillOfLadingMilestoneState
@@ -260,6 +339,10 @@ class BillOfLading extends Model
 
     public function retentionExpiresAt(): ?Carbon
     {
+        if ($this->retention_until) {
+            return $this->retention_until->copy();
+        }
+
         if (! $this->input_date) {
             return null;
         }
@@ -284,20 +367,24 @@ class BillOfLading extends Model
      */
     public function postProgressUpdate(array $attributes, ?int $userId = null): BillOfLadingUpdate
     {
-        $this->update([
-            'status' => $attributes['status'],
-            'note' => $attributes['note'] ?? null,
-            'customer_note' => $attributes['note'] ?? $this->customer_note,
-        ]);
+        return app(BillOfLadingWorkflowService::class)->postProgressUpdate(
+            $this,
+            $attributes,
+            $userId ?? auth()->id(),
+        );
+    }
 
-        return $this->updates()->create([
+    /**
+     * @param  array<string, mixed>  $changes
+     */
+    public function recordAudit(string $event, array $changes, ?int $userId = null): void
+    {
+        BillOfLadingAudit::query()->create([
+            'bill_of_lading_id' => $this->getKey(),
+            'bl_number' => $this->bl_number,
             'user_id' => $userId ?? auth()->id(),
-            'status' => $attributes['status'],
-            'phase' => $this->phase,
-            'milestone_key' => $this->current_milestone_key,
-            'customs_lane' => $this->customs_lane,
-            'visibility' => $attributes['visibility'] ?? BillOfLadingUpdate::VISIBILITY_CUSTOMER,
-            'note' => $attributes['note'] ?? null,
+            'event' => $event,
+            'changes' => $changes,
         ]);
     }
 }

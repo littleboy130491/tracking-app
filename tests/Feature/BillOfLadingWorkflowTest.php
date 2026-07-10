@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\BillOfLadingWorkflowService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -139,18 +140,93 @@ class BillOfLadingWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_bl_delete_retention_uses_three_year_input_date_window(): void
+    public function test_bl_delete_retention_uses_immutable_retention_deadline(): void
     {
         $retained = BillOfLading::factory()->create([
             'input_date' => now()->subYears(2)->toDateString(),
         ]);
         $expired = BillOfLading::factory()->create([
             'input_date' => now()->subYears(4)->toDateString(),
+            'retention_until' => now()->subDay()->toDateString(),
         ]);
 
         $this->assertTrue($retained->isWithinRetentionWindow());
         $this->assertFalse($retained->canBeDeletedAfterRetention());
         $this->assertFalse($expired->isWithinRetentionWindow());
         $this->assertTrue($expired->canBeDeletedAfterRetention());
+    }
+
+    public function test_shipment_type_cannot_change_after_workflow_starts(): void
+    {
+        $billOfLading = BillOfLading::factory()->create([
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+        ])->refresh();
+
+        $this->expectException(ValidationException::class);
+
+        $billOfLading->update(['shipment_type' => BillOfLading::TYPE_EXPORT]);
+    }
+
+    public function test_completed_status_cannot_be_set_while_milestones_are_open(): void
+    {
+        $billOfLading = BillOfLading::factory()->create()->refresh();
+
+        $this->expectException(ValidationException::class);
+
+        $billOfLading->update(['status' => BillOfLading::STATUS_COMPLETED]);
+    }
+
+    public function test_delivery_track_requires_completed_primary_workflow(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $workflow = app(BillOfLadingWorkflowService::class);
+        $billOfLading = BillOfLading::factory()->create([
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+        ]);
+
+        $this->assertFalse($workflow->canActivateDeliveryTrack($billOfLading));
+
+        $workflow->advanceToMilestone($billOfLading->fresh(), 'pib_response', $admin->id);
+        $workflow->completeCurrentMilestone($billOfLading->fresh(), ['note' => 'PIB response received.'], $admin->id);
+        $workflow->assignCustomsLane($billOfLading->fresh(), 'green', $admin->id);
+        $workflow->advanceToMilestone($billOfLading->fresh(), 'deliver_container', $admin->id);
+        $workflow->completeCurrentMilestone($billOfLading->fresh(), ['note' => 'Import process complete.'], $admin->id);
+
+        $this->assertTrue($workflow->canActivateDeliveryTrack($billOfLading->fresh()));
+
+        $workflow->activateDeliveryTrack($billOfLading->fresh(), $admin->id);
+
+        $this->assertDatabaseHas('bill_of_lading_milestone_states', [
+            'bill_of_lading_id' => $billOfLading->id,
+            'workflow_key' => 'delivery',
+            'milestone_key' => 'finalize_docs',
+            'state' => BillOfLadingMilestoneState::STATE_IN_PROGRESS,
+        ]);
+    }
+
+    public function test_retained_bl_cannot_be_deleted_and_expired_bl_is_soft_deleted(): void
+    {
+        $retained = BillOfLading::factory()->create();
+
+        try {
+            $retained->delete();
+            $this->fail('Retained BL deletion should have been rejected.');
+        } catch (ValidationException) {
+            $this->assertDatabaseHas('bill_of_ladings', [
+                'id' => $retained->id,
+                'deleted_at' => null,
+            ]);
+        }
+
+        $expired = BillOfLading::factory()->create([
+            'retention_until' => now()->subDay()->toDateString(),
+        ]);
+        $expired->delete();
+
+        $this->assertSoftDeleted('bill_of_ladings', ['id' => $expired->id]);
+        $this->assertDatabaseHas('bill_of_lading_audits', [
+            'bill_of_lading_id' => $expired->id,
+            'event' => 'deleted',
+        ]);
     }
 }

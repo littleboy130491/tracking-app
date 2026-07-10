@@ -1,7 +1,7 @@
 <x-customer.layout title="Customer Login">
     <section class="panel auth-panel">
         <h1>Customer Login</h1>
-        <p class="muted">Enter your registered email to receive a demo OTP.</p>
+        <p class="muted">Enter your registered customer email.</p>
 
         @if ($errors->has('email'))
             <div class="errors">
@@ -16,7 +16,7 @@
                 <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus>
             </div>
 
-            <button type="submit">Request OTP</button>
+            <button type="submit">Continue</button>
         </form>
     </section>
 </x-customer.layout>

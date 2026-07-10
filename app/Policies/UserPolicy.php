@@ -32,10 +32,7 @@ class UserPolicy
 
     public function delete(AuthUser $authUser, User $user): bool
     {
-        return $authUser->can('Delete:User')
-            && $user->billOfLadings()
-                ->get()
-                ->every(fn ($billOfLading): bool => $billOfLading->canBeDeletedAfterRetention());
+        return false;
     }
 
     public function deleteAny(AuthUser $authUser): bool
@@ -50,8 +47,7 @@ class UserPolicy
 
     public function forceDelete(AuthUser $authUser, User $user): bool
     {
-        return $this->delete($authUser, $user)
-            && $authUser->can('ForceDelete:User');
+        return false;
     }
 
     public function forceDeleteAny(AuthUser $authUser): bool

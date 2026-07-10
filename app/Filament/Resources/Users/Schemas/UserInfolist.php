@@ -36,6 +36,10 @@ class UserInfolist
                             ->label('Last Login')
                             ->dateTime()
                             ->placeholder('Never logged in'),
+                        TextEntry::make('is_active')
+                            ->label('Account Status')
+                            ->formatStateUsing(fn (bool $state): string => $state ? 'Active' : 'Inactive')
+                            ->badge(),
                         TextEntry::make('created_at')
                             ->label('Created')
                             ->dateTime(),

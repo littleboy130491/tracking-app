@@ -8,8 +8,7 @@
     $queryParams = array_filter([
         'q' => $filters['q'] ?: null,
         'status' => $filters['status'] ?: null,
-        'milestone' => $filters['milestone'] ?: null,
-        'month' => $filters['month'] ?: null,
+        'shipment_type' => $filters['shipment_type'] ?: null,
         'year' => $filters['year'] ?: null,
         'per_page' => $filters['per_page'] ?: null,
     ]);

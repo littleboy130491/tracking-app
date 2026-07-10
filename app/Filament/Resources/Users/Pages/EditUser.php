@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\Concerns\SyncsCustomerDisplayName;
 use App\Filament\Resources\Users\UserResource;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Enums\Width;
@@ -30,10 +29,6 @@ class EditUser extends EditRecord
     {
         return [
             ViewAction::make(),
-            DeleteAction::make()
-                ->visible(fn ($record): bool => $record->billOfLadings()
-                    ->get()
-                    ->every(fn ($billOfLading): bool => $billOfLading->canBeDeletedAfterRetention())),
         ];
     }
 }

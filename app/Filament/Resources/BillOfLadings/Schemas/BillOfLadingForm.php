@@ -49,6 +49,8 @@ class BillOfLadingForm
                             ->options(config('bl_workflows.shipment_types'))
                             ->default(BillOfLading::TYPE_IMPORT)
                             ->required()
+                            ->disabled(fn (?BillOfLading $record): bool => $record !== null)
+                            ->dehydrated(fn (?BillOfLading $record): bool => $record === null)
                             ->live(),
                         DatePicker::make('input_date')
                             ->label('Input Date')
@@ -258,7 +260,9 @@ class BillOfLadingForm
                     ->schema([
                         Select::make('status')
                             ->options(array_combine(BillOfLading::STATUSES, BillOfLading::STATUSES))
-                            ->default(BillOfLading::STATUS_PENDING)
+                            ->default(BillOfLading::STATUS_IN_PROGRESS)
+                            ->disabled()
+                            ->dehydrated(fn (?BillOfLading $record): bool => $record === null)
                             ->required(),
                         TextInput::make('phase')
                             ->label('Phase / Milestone')

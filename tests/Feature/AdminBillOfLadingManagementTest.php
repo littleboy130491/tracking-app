@@ -68,20 +68,22 @@ class AdminBillOfLadingManagementTest extends TestCase
         $this->assertArrayHasKey('bl_number', $validator->errors()->messages());
     }
 
-    public function test_admin_can_update_status_without_overriding_workflow_phase(): void
+    public function test_admin_can_put_a_bl_on_hold_without_overriding_workflow_phase(): void
     {
+        $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
-            'status' => BillOfLading::STATUS_PENDING,
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
         ]);
         $workflowPhase = $billOfLading->fresh()->phase;
 
-        $billOfLading->update([
-            'status' => BillOfLading::STATUS_COMPLETED,
-        ]);
+        $billOfLading->postProgressUpdate([
+            'status' => BillOfLading::STATUS_ON_HOLD,
+            'note' => 'Waiting for customer confirmation.',
+        ], $admin->id);
 
         $billOfLading->refresh();
 
-        $this->assertSame(BillOfLading::STATUS_COMPLETED, $billOfLading->status);
+        $this->assertSame(BillOfLading::STATUS_ON_HOLD, $billOfLading->status);
         $this->assertSame($workflowPhase, $billOfLading->phase);
     }
 
@@ -118,47 +120,48 @@ class AdminBillOfLadingManagementTest extends TestCase
 
     public function test_admin_can_filter_bl_records_by_status_milestone_and_input_date(): void
     {
-        $pending = BillOfLading::factory()->create([
-            'bl_number' => 'BL-FILTER-PENDING',
-            'status' => BillOfLading::STATUS_PENDING,
+        $inProgress = BillOfLading::factory()->create([
+            'bl_number' => 'BL-FILTER-PROGRESS',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
             'input_date' => '2026-03-10',
         ]);
-        $pending->forceFill([
+        $inProgress->forceFill([
             'phase' => 'Proses DO',
             'current_milestone_key' => 'process_do',
         ])->saveQuietly();
 
-        $completed = BillOfLading::factory()->create([
-            'bl_number' => 'BL-FILTER-COMPLETED',
-            'status' => BillOfLading::STATUS_COMPLETED,
+        $onHold = BillOfLading::factory()->create([
+            'bl_number' => 'BL-FILTER-HOLD',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
             'input_date' => '2026-06-15',
         ]);
-        $completed->forceFill([
+        $onHold->forceFill([
             'phase' => 'Penerimaan dokumen customer',
             'current_milestone_key' => 'receive_docs',
+            'status' => BillOfLading::STATUS_ON_HOLD,
         ])->saveQuietly();
 
-        $this->assertSame([$pending->id], BillOfLading::query()
-            ->where('status', BillOfLading::STATUS_PENDING)
+        $this->assertSame([$inProgress->id], BillOfLading::query()
+            ->where('status', BillOfLading::STATUS_IN_PROGRESS)
             ->pluck('id')
             ->all());
 
-        $this->assertSame([$completed->id], BillOfLading::query()
+        $this->assertSame([$onHold->id], BillOfLading::query()
             ->where('current_milestone_key', 'receive_docs')
             ->pluck('id')
             ->all());
 
-        $this->assertSame([$pending->id], BillOfLading::query()
+        $this->assertSame([$inProgress->id], BillOfLading::query()
             ->whereMonth('input_date', 3)
             ->pluck('id')
             ->all());
 
-        $this->assertEqualsCanonicalizing([$pending->id, $completed->id], BillOfLading::query()
+        $this->assertEqualsCanonicalizing([$inProgress->id, $onHold->id], BillOfLading::query()
             ->whereYear('input_date', 2026)
             ->pluck('id')
             ->all());
 
-        $this->assertSame([$completed->id], BillOfLading::query()
+        $this->assertSame([$onHold->id], BillOfLading::query()
             ->whereDate('input_date', '2026-06-15')
             ->pluck('id')
             ->all());

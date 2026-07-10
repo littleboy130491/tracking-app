@@ -28,10 +28,6 @@ class AdvanceMilestoneAction
             ->modalDescription('Complete the current milestone and move the BL to the next step.')
             ->modalSubmitActionLabel('Complete current step')
             ->schema([
-                Select::make('status')
-                    ->label('Status after update')
-                    ->options(array_combine(BillOfLading::STATUSES, BillOfLading::STATUSES))
-                    ->required(),
                 Select::make('visibility')
                     ->label('Note visibility')
                     ->options(config('bl_workflows.visibilities'))
@@ -44,9 +40,6 @@ class AdvanceMilestoneAction
                     ->columnSpanFull(),
             ])
             ->fillForm(fn (BillOfLading $record): array => [
-                'status' => $record->status === BillOfLading::STATUS_PENDING
-                    ? BillOfLading::STATUS_IN_PROGRESS
-                    : $record->status,
                 'visibility' => BillOfLadingUpdate::VISIBILITY_CUSTOMER,
                 'note' => '',
             ])

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Schemas;
 
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -35,6 +36,9 @@ class UserForm
                             ->label('PIC Phone Number')
                             ->tel()
                             ->maxLength(255),
+                        Toggle::make('is_active')
+                            ->label('Account active')
+                            ->default(true),
                     ])
                     ->columns(1),
             ]);

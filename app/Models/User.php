@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -23,12 +24,24 @@ use Spatie\Permission\Traits\HasRoles;
     'pic_name',
     'pic_phone',
     'last_login_at',
+    'is_active',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            if (BillOfLading::withTrashed()->where('customer_id', $user->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'user' => 'Customer accounts with BL history cannot be deleted. Deactivate the account instead.',
+                ]);
+            }
+        });
+    }
 
     public const ROLE_ADMIN = 'super_admin';
 
@@ -45,6 +58,15 @@ class User extends Authenticatable implements FilamentUser
         'workflow_delivery',
     ];
 
+    public const WORKFLOW_ROLE_LABELS = [
+        'workflow_documents' => 'Document intake',
+        'workflow_customs' => 'Customs',
+        'workflow_billing' => 'Billing',
+        'workflow_operations' => 'Operations',
+        'workflow_export' => 'Export',
+        'workflow_delivery' => 'Delivery',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -56,12 +78,14 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
         return $panel->getId() === 'admin'
+            && $this->is_active
             && $this->hasAnyRole([self::ROLE_ADMIN, self::ROLE_PANEL_USER]);
     }
 

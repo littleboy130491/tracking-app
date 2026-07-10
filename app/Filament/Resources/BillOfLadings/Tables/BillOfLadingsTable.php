@@ -15,6 +15,7 @@ use Filament\Tables\Filters\Indicator;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class BillOfLadingsTable
 {
@@ -26,6 +27,11 @@ class BillOfLadingsTable
                     ->label('BL Number')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('containers.container_number')
+                    ->label('Container Numbers')
+                    ->searchable()
+                    ->listWithLineBreaks()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('customer.company_name')
                     ->label('Customer')
                     ->searchable()
@@ -117,14 +123,7 @@ class BillOfLadingsTable
                     )),
                 SelectFilter::make('year')
                     ->label('Year')
-                    ->options(fn (): array => BillOfLading::query()
-                        ->whereNotNull('input_date')
-                        ->get(['input_date'])
-                        ->map(fn (BillOfLading $billOfLading): int => $billOfLading->input_date->year)
-                        ->unique()
-                        ->sortDesc()
-                        ->mapWithKeys(fn (int $year): array => [(string) $year => (string) $year])
-                        ->all())
+                    ->options(fn (): array => self::yearOptions())
                     ->query(fn (Builder $query, array $data): Builder => $query->when(
                         filled($data['value'] ?? null),
                         fn (Builder $query): Builder => $query->whereYear('input_date', (int) $data['value']),
@@ -163,6 +162,25 @@ class BillOfLadingsTable
             ->mapWithKeys(fn (int $month): array => [
                 (string) $month => now()->startOfYear()->month($month)->format('F'),
             ])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function yearOptions(): array
+    {
+        $expression = DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y', input_date)"
+            : 'YEAR(input_date)';
+
+        return BillOfLading::query()
+            ->whereNotNull('input_date')
+            ->selectRaw("{$expression} as input_year")
+            ->distinct()
+            ->orderByDesc('input_year')
+            ->pluck('input_year')
+            ->mapWithKeys(fn ($year): array => [(string) $year => (string) $year])
             ->all();
     }
 }

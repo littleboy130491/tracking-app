@@ -57,6 +57,30 @@ class DemoSeederTest extends TestCase
         );
         $this->assertTrue(BillOfLadingContainer::query()->exists());
 
+        $ooclContainers = BillOfLading::query()
+            ->where('bl_number', 'OOLU2327606650')
+            ->firstOrFail()
+            ->containers()
+            ->pluck('container_number')
+            ->all();
+
+        $this->assertSame([
+            'CCLU7687950',
+            'FFAU3320525',
+            'FFAU3136821',
+            'CSNU7931556',
+            'FFAU5965864',
+            'OOLU6751921',
+        ], $ooclContainers);
+
+        $this->assertFalse(BillOfLading::query()
+            ->where('status', BillOfLading::STATUS_COMPLETED)
+            ->whereHas('milestoneStates', fn ($query) => $query->whereIn('state', [
+                BillOfLadingMilestoneState::STATE_PENDING,
+                BillOfLadingMilestoneState::STATE_IN_PROGRESS,
+            ]))
+            ->exists());
+
         $this->assertFalse(
             BillOfLading::query()
                 ->whereBelongsTo($customerA, 'customer')

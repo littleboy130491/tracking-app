@@ -1,109 +1,96 @@
 <x-customer.layout title="{{ $billOfLading->bl_number }}">
     @php
-        $currentNode = $timelineNodes->firstWhere('state', 'in_progress')
-            ?? $timelineNodes->last(fn ($node) => $node['state'] === 'completed');
-        $completedCount = $timelineNodes->where('state', 'completed')->count();
-        $totalCount = $timelineNodes->count();
+        $allNodes = $timelineTracks->flatMap(fn ($track) => $track['nodes']);
+        $currentNode = $allNodes->firstWhere('state', 'in_progress')
+            ?? $allNodes->last(fn ($node) => $node['state'] === 'completed');
+        $completedCount = $allNodes->where('state', 'completed')->count();
+        $totalCount = $allNodes->count();
+        $progressPercent = $totalCount > 0 ? (int) round(($completedCount / $totalCount) * 100) : 0;
         $pol = $billOfLading->port_of_loading ?: ($billOfLading->origin ?: '-');
         $pod = $billOfLading->port_of_discharge ?: ($billOfLading->destination ?: '-');
         $cbm = $billOfLading->measurement_cbm ?: $billOfLading->volume_cbm;
         $latestNote = $billOfLading->customer_note ?: $billOfLading->note;
+        $statusClass = \Illuminate\Support\Str::slug($billOfLading->status);
     @endphp
 
-    <div class="detail-top">
-        <a class="back-link" href="{{ route('customer.dashboard') }}">← Back to list</a>
+    <a class="back-link" href="{{ route('customer.dashboard') }}">&larr; Shipments</a>
 
-        <div class="status-hero {{ $laneClass }}">
-            <div class="status-hero-main">
-                <p class="status-kicker">Current status</p>
-                <p class="shipment-type type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</p>
-                <h1>
-                    <button
-                        type="button"
-                        class="copyable-bl"
-                        data-copy="{{ $billOfLading->bl_number }}"
-                        title="Click to copy BL number"
-                        aria-label="Copy BL number {{ $billOfLading->bl_number }}"
-                    >
-                        {{ $billOfLading->bl_number }}
-                    </button>
-                </h1>
-                <p class="status-step">
-                    {{ $currentNode['label'] ?? ($billOfLading->phase ?: $billOfLading->status) }}
-                </p>
-                <p class="status-route">{{ $pol }} → {{ $pod }}</p>
-                @if ($billOfLading->shipment_description)
-                    <p class="status-summary">{{ $billOfLading->shipment_description }}</p>
-                @endif
-                <div class="header-badges">
-                    <span class="badge">{{ $billOfLading->status }}</span>
-                    @if ($billOfLading->customsLaneLabel())
-                        <span class="badge lane {{ $laneClass }}">{{ $billOfLading->customsLaneLabel() }}</span>
-                    @endif
-                </div>
-            </div>
-
-            <div class="status-hero-side">
-                @if ($totalCount > 0)
-                    <div class="status-meta">
-                        <strong>Progress</strong>
-                        <p>{{ $completedCount }} of {{ $totalCount }} steps done</p>
-                    </div>
-                @endif
-                <div class="status-meta">
-                    <strong>Last update</strong>
-                    <p>{{ $billOfLading->updated_at->format('M j, Y H:i') }}</p>
-                </div>
-                @if ($billOfLading->gps_tracking_url)
-                    <a
-                        class="button gps-button"
-                        href="{{ $billOfLading->gps_tracking_url }}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        Open GPS tracking
-                    </a>
-                @endif
-                @if ($latestNote)
-                    <div class="status-note">
-                        <strong>Latest note</strong>
-                        <p>{{ $latestNote }}</p>
-                    </div>
+    <header class="tracking-header {{ $laneClass }}">
+        <div class="tracking-heading">
+            <div class="shipment-tags">
+                <span class="type-tag type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</span>
+                <span class="status-tag status-{{ $statusClass }}">{{ $billOfLading->status }}</span>
+                @if ($billOfLading->customsLaneLabel())
+                    <span class="lane-tag">{{ $billOfLading->customsLaneLabel() }}</span>
                 @endif
             </div>
+            <p class="eyebrow">Bill of lading</p>
+            <h1>{{ $billOfLading->bl_number }}</h1>
+            <p class="tracking-route">{{ $pol }} <b aria-hidden="true">&rarr;</b> {{ $pod }}</p>
+            @if ($billOfLading->shipment_description)
+                <p class="tracking-description">{{ $billOfLading->shipment_description }}</p>
+            @endif
         </div>
-    </div>
 
-    <div class="stack detail-stack">
-        <section class="panel">
-            <div class="section-heading">
-                <h2>Progress</h2>
-                <p class="section-help">Follow the steps from top to bottom.</p>
+        <div class="tracking-summary">
+            <div>
+                <span>Current step</span>
+                <strong>{{ $currentNode['label'] ?? ($billOfLading->phase ?: $billOfLading->status) }}</strong>
             </div>
+            <div class="progress-summary">
+                <span>{{ $completedCount }} of {{ $totalCount }} steps</span>
+                <strong>{{ $progressPercent }}%</strong>
+            </div>
+            <div class="progress-meter" aria-label="{{ $progressPercent }} percent complete">
+                <span style="width: {{ $progressPercent }}%"></span>
+            </div>
+            @if ($billOfLading->gps_tracking_url)
+                <a
+                    class="button gps-button"
+                    href="{{ $billOfLading->gps_tracking_url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Open GPS tracking
+                </a>
+            @endif
+        </div>
+    </header>
 
-            @if ($timelineNodes->isEmpty())
-                <div class="empty">No progress steps yet.</div>
-            @else
-                <ol class="step-list {{ $laneClass }}">
-                    @foreach ($timelineNodes as $index => $node)
-                        <li class="step-item state-{{ $node['state'] }}">
-                            <div class="step-rail" aria-hidden="true">
-                                <span class="step-dot">
-                                    @if ($node['state'] === 'completed')
-                                        ✓
-                                    @elseif ($node['state'] === 'in_progress')
-                                        {{ $index + 1 }}
-                                    @else
-                                        {{ $index + 1 }}
-                                    @endif
-                                </span>
-                            </div>
-                            <div class="step-body">
-                                <div class="step-title-row">
-                                    <span class="step-title">{{ $node['label'] }}</span>
-                                    <span class="step-state">
+    @if ($latestNote)
+        <aside class="latest-update">
+            <span>Latest update</span>
+            <p>{{ $latestNote }}</p>
+            <time datetime="{{ $billOfLading->updated_at->toIso8601String() }}">{{ $billOfLading->updated_at->format('M j, Y H:i') }}</time>
+        </aside>
+    @endif
+
+    <div class="tracking-layout">
+        <main class="tracking-main">
+            @foreach ($timelineTracks as $track)
+                <section class="track-section">
+                    <div class="section-title">
+                        <p class="eyebrow">Tracking</p>
+                        <h2>{{ $track['title'] }}</h2>
+                    </div>
+
+                    <ol class="step-list {{ $laneClass }}">
+                        @foreach ($track['nodes'] as $index => $node)
+                            <li class="step-item state-{{ $node['state'] }}">
+                                <div class="step-rail" aria-hidden="true">
+                                    <span class="step-dot">
                                         @if ($node['state'] === 'completed')
-                                            Done
+                                            &#10003;
+                                        @else
+                                            {{ $index + 1 }}
+                                        @endif
+                                    </span>
+                                </div>
+                                <div class="step-body">
+                                    <strong>{{ $node['label'] }}</strong>
+                                    <span>
+                                        @if ($node['state'] === 'completed')
+                                            Completed
                                         @elseif ($node['state'] === 'in_progress')
                                             In progress
                                         @else
@@ -111,147 +98,103 @@
                                         @endif
                                     </span>
                                 </div>
-                            </div>
-                        </li>
-                    @endforeach
-                </ol>
-            @endif
-        </section>
+                            </li>
+                        @endforeach
+                    </ol>
+                </section>
+            @endforeach
 
-        <section class="panel">
-            <div class="section-heading">
-                <h2>Shipment summary</h2>
-            </div>
+            <section class="detail-section">
+                <div class="section-title">
+                    <p class="eyebrow">Cargo</p>
+                    <h2>Shipment details</h2>
+                </div>
 
-            <div class="summary-grid">
-                <div>
-                    <strong>Carrier</strong>
-                    <p>{{ $billOfLading->carrier_name ?: '-' }}</p>
+                <dl class="facts-grid">
+                    <div><dt>Carrier</dt><dd>{{ $billOfLading->carrier_name ?: '-' }}</dd></div>
+                    <div>
+                        <dt>Vessel / voyage</dt>
+                        <dd>{{ $billOfLading->vessel_name ?: '-' }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}</dd>
+                    </div>
+                    <div><dt>Shipped on board</dt><dd>{{ $billOfLading->shipped_on_board_date?->format('M j, Y') ?: '-' }}</dd></div>
+                    <div><dt>Packages</dt><dd>{{ $billOfLading->package_count ?: ($billOfLading->quantity ?: '-') }}</dd></div>
+                    <div><dt>Gross weight</dt><dd>{{ $billOfLading->gross_weight_kg ? number_format((float) $billOfLading->gross_weight_kg, 2).' kg' : '-' }}</dd></div>
+                    <div><dt>Measurement</dt><dd>{{ $cbm ? number_format((float) $cbm, 2).' CBM' : '-' }}</dd></div>
+                    <div><dt>HS code</dt><dd>{{ $billOfLading->hs_code ?: '-' }}</dd></div>
+                    <div><dt>Input date</dt><dd>{{ $billOfLading->input_date->format('M j, Y') }}</dd></div>
+                    <div class="fact-wide">
+                        <dt>Goods</dt>
+                        <dd>{{ $billOfLading->goods_description ?: ($billOfLading->items_description ?: $billOfLading->shipment_description) }}</dd>
+                    </div>
+                    @if ($billOfLading->free_time_notes)
+                        <div class="fact-wide"><dt>Free time</dt><dd>{{ $billOfLading->free_time_notes }}</dd></div>
+                    @endif
+                </dl>
+            </section>
+
+            <section class="detail-section">
+                <div class="section-title section-title-row">
+                    <div>
+                        <p class="eyebrow">Equipment</p>
+                        <h2>Containers</h2>
+                    </div>
+                    <span>{{ $billOfLading->containers->count() }} total</span>
                 </div>
-                <div>
-                    <strong>Vessel / Voyage</strong>
-                    <p>
-                        @if ($billOfLading->vessel_name)
-                            {{ $billOfLading->vessel_name }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}
-                        @else
-                            -
-                        @endif
-                    </p>
-                </div>
-                <div>
-                    <strong>Shipped on board</strong>
-                    <p>{{ $billOfLading->shipped_on_board_date?->format('M j, Y') ?: '-' }}</p>
-                </div>
-                <div>
-                    <strong>Packages</strong>
-                    <p>{{ $billOfLading->package_count ?: ($billOfLading->quantity ?: '-') }}</p>
-                </div>
-                <div>
-                    <strong>Gross weight</strong>
-                    <p>
-                        @if ($billOfLading->gross_weight_kg)
-                            {{ number_format((float) $billOfLading->gross_weight_kg, 2) }} kg
-                        @else
-                            -
-                        @endif
-                    </p>
-                </div>
-                <div>
-                    <strong>Measurement</strong>
-                    <p>
-                        @if ($cbm)
-                            {{ number_format((float) $cbm, 2) }} CBM
-                        @else
-                            -
-                        @endif
-                    </p>
-                </div>
-                <div>
-                    <strong>HS code</strong>
-                    <p>{{ $billOfLading->hs_code ?: '-' }}</p>
-                </div>
-                <div>
-                    <strong>Input date</strong>
-                    <p>{{ $billOfLading->input_date->format('M j, Y') }}</p>
-                </div>
-                <div class="full-width">
-                    <strong>Goods</strong>
-                    <p>{{ $billOfLading->goods_description ?: ($billOfLading->items_description ?: ($billOfLading->shipment_description ?: '-')) }}</p>
-                </div>
-                @if ($billOfLading->free_time_notes)
-                    <div class="full-width">
-                        <strong>Free time notes</strong>
-                        <p>{{ $billOfLading->free_time_notes }}</p>
+
+                @if ($billOfLading->containers->isEmpty())
+                    <div class="empty-state"><strong>No containers recorded</strong></div>
+                @else
+                    <div class="table-wrap">
+                        <table class="container-table">
+                            <thead>
+                                <tr>
+                                    <th>Container</th>
+                                    <th>Seal</th>
+                                    <th>Type</th>
+                                    <th>Packages</th>
+                                    <th>Weight</th>
+                                    <th>CBM</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($billOfLading->containers as $container)
+                                    <tr>
+                                        <td data-label="Container"><strong>{{ $container->container_number }}</strong></td>
+                                        <td data-label="Seal">{{ $container->seal_number ?: '-' }}</td>
+                                        <td data-label="Type">{{ $container->container_type ?: '-' }}</td>
+                                        <td data-label="Packages">{{ $container->package_count ?: '-' }}</td>
+                                        <td data-label="Weight">{{ $container->gross_weight_kg ? number_format((float) $container->gross_weight_kg, 3).' kg' : '-' }}</td>
+                                        <td data-label="CBM">{{ $container->measurement_cbm ? number_format((float) $container->measurement_cbm, 3) : '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 @endif
-            </div>
-        </section>
+            </section>
+        </main>
 
-        <section class="panel">
-            <div class="section-heading">
-                <h2>Containers</h2>
-            </div>
-
-            @if ($billOfLading->containers->isEmpty())
-                <div class="empty">No containers recorded.</div>
-            @else
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Container</th>
-                                <th>Seal</th>
-                                <th>Type</th>
-                                <th>Packages</th>
-                                <th>Weight (kg)</th>
-                                <th>CBM</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($billOfLading->containers as $container)
-                                <tr>
-                                    <td>{{ $container->container_number }}</td>
-                                    <td>{{ $container->seal_number ?: '-' }}</td>
-                                    <td>{{ $container->container_type ?: '-' }}</td>
-                                    <td>{{ $container->package_count ?: '-' }}</td>
-                                    <td>{{ $container->gross_weight_kg ? number_format((float) $container->gross_weight_kg, 3) : '-' }}</td>
-                                    <td>{{ $container->measurement_cbm ? number_format((float) $container->measurement_cbm, 3) : '-' }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-        </section>
-
-        <section class="panel">
-            <div class="section-heading">
-                <h2>Update history</h2>
-                <p class="section-help">Recent changes on this shipment.</p>
+        <aside class="history-section">
+            <div class="section-title">
+                <p class="eyebrow">Activity</p>
+                <h2>Updates</h2>
             </div>
 
             @if ($billOfLading->updates->isEmpty())
-                <div class="empty">No update history yet.</div>
+                <div class="empty-state"><strong>No updates yet</strong></div>
             @else
                 <ol class="history-list">
                     @foreach ($billOfLading->updates->sortByDesc('created_at') as $update)
                         <li class="history-item">
-                            <time datetime="{{ $update->created_at->toIso8601String() }}">
-                                {{ $update->created_at->format('M j, Y H:i') }}
-                            </time>
-                            <div class="history-body">
-                                <div class="timeline-meta">
-                                    <span class="badge">{{ $update->status }}</span>
-                                    <span class="badge phase">{{ $update->phase }}</span>
-                                </div>
-                                @if ($update->note)
-                                    <p class="timeline-note">{{ $update->note }}</p>
-                                @endif
-                            </div>
+                            <time datetime="{{ $update->created_at->toIso8601String() }}">{{ $update->created_at->format('M j, Y H:i') }}</time>
+                            <strong>{{ $update->phase }}</strong>
+                            @if ($update->note)
+                                <p>{{ $update->note }}</p>
+                            @endif
                         </li>
                     @endforeach
                 </ol>
             @endif
-        </section>
+        </aside>
     </div>
 </x-customer.layout>

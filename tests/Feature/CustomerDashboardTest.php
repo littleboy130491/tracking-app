@@ -78,13 +78,13 @@ class CustomerDashboardTest extends TestCase
             ->get(route('customer.dashboard', ['q' => 'FOUND']))
             ->assertOk()
             ->assertSee('BL-FOUND')
-            ->assertSee('Search BL / Container')
-            ->assertSee('Enter part or all of a BL number or container number');
+            ->assertSee('BL or container')
+            ->assertSee('View tracking');
 
         $this->actingAs($customer)
             ->get(route('customer.dashboard', ['q' => 'MISSING']))
             ->assertOk()
-            ->assertSee('No BL records found.');
+            ->assertSee('No shipments found');
     }
 
     public function test_customer_dashboard_shows_company_name_and_login_email(): void
@@ -98,10 +98,10 @@ class CustomerDashboardTest extends TestCase
             ->get(route('customer.dashboard'))
             ->assertOk()
             ->assertSee('Acme Logistics')
-            ->assertSee('Signed in with customer@example.com');
+            ->assertSee('customer@example.com');
     }
 
-    public function test_customer_can_filter_dashboard_by_status_milestone_and_date(): void
+    public function test_customer_can_filter_dashboard_by_status_type_and_year(): void
     {
         $customer = User::factory()->customer()->create();
 
@@ -109,6 +109,7 @@ class CustomerDashboardTest extends TestCase
             'customer_id' => $customer->id,
             'bl_number' => 'BL-MATCH',
             'status' => 'In Progress',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
             'input_date' => '2026-06-15',
         ]);
         $match->forceFill(['current_milestone_key' => 'process_do'])->saveQuietly();
@@ -116,7 +117,7 @@ class CustomerDashboardTest extends TestCase
         $other = BillOfLading::factory()->create([
             'customer_id' => $customer->id,
             'bl_number' => 'BL-OTHER',
-            'status' => 'Pending',
+            'shipment_type' => BillOfLading::TYPE_EXPORT,
             'input_date' => '2025-01-10',
         ]);
         $other->forceFill(['current_milestone_key' => 'receive_docs'])->saveQuietly();
@@ -124,8 +125,7 @@ class CustomerDashboardTest extends TestCase
         $this->actingAs($customer)
             ->get(route('customer.dashboard', [
                 'status' => 'In Progress',
-                'milestone' => 'process_do',
-                'month' => '6',
+                'shipment_type' => BillOfLading::TYPE_IMPORT,
                 'year' => '2026',
             ]))
             ->assertOk()
@@ -161,7 +161,7 @@ class CustomerDashboardTest extends TestCase
         $this->actingAs($customer)
             ->get(route('customer.dashboard'))
             ->assertOk()
-            ->assertSee('No BL records found.');
+            ->assertSee('No shipments found');
     }
 
     public function test_customer_bl_detail_shows_tracking_fields_and_update_history(): void
@@ -206,11 +206,11 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('14.20 CBM')
             ->assertSee('In Progress')
             ->assertSee('Currently in transit.')
-            ->assertSee('Update history')
+            ->assertSee('Updates')
             ->assertSee('Initial history entry.')
-            ->assertSee('Progress')
+            ->assertSee('Import process')
             ->assertSee('Containers')
-            ->assertSee('Current status');
+            ->assertSee('Current step');
     }
 
     public function test_customer_pages_include_mobile_viewport_layout(): void

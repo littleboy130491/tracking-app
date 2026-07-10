@@ -20,6 +20,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class BillOfLadingContainer extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(fn (BillOfLadingContainer $container) => $container->recordAudit('container_created'));
+        static::updated(fn (BillOfLadingContainer $container) => $container->recordAudit('container_updated'));
+        static::deleted(fn (BillOfLadingContainer $container) => $container->recordAudit('container_deleted'));
+    }
+
     protected function casts(): array
     {
         return [
@@ -36,5 +43,21 @@ class BillOfLadingContainer extends Model
     public function billOfLading(): BelongsTo
     {
         return $this->belongsTo(BillOfLading::class);
+    }
+
+    private function recordAudit(string $event): void
+    {
+        $billOfLading = $this->billOfLading()->first();
+
+        if (! $billOfLading) {
+            return;
+        }
+
+        $billOfLading->recordAudit($event, [
+            'container' => [
+                'old' => $event === 'container_created' ? null : $this->getRawOriginal(),
+                'new' => $event === 'container_deleted' ? null : $this->attributesToArray(),
+            ],
+        ]);
     }
 }
