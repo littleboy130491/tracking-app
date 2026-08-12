@@ -124,6 +124,7 @@
                         <div class="shipment-identity">
                             <div class="shipment-tags">
                                 <span class="type-tag type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</span>
+                                <span class="type-tag">{{ $billOfLading->shippingMethodLabel() }}</span>
                                 <span class="status-tag status-{{ $statusClass }}">{{ $billOfLading->displayStatus() }}</span>
                             </div>
                             <h3>{{ $billOfLading->bl_number }}</h3>

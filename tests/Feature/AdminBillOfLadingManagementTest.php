@@ -20,6 +20,7 @@ class AdminBillOfLadingManagementTest extends TestCase
         $billOfLading = BillOfLading::factory()->create([
             'bl_number' => 'BL-CUSTOMER-A-001',
             'customer_id' => $customerA->id,
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
             'shipment_description' => 'Shipment for customer A',
             'input_date' => '2026-06-15',
             'status' => BillOfLading::STATUS_PENDING,
@@ -28,6 +29,7 @@ class AdminBillOfLadingManagementTest extends TestCase
         $this->assertDatabaseHas('bill_of_ladings', [
             'bl_number' => 'BL-CUSTOMER-A-001',
             'customer_id' => $customerA->id,
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
         ]);
         $this->assertSame('receive_docs', $billOfLading->fresh()->current_milestone_key);
     }

@@ -20,13 +20,9 @@ class BillOfLadingForm
         return $schema
             ->columns(1)
             ->components([
-                Section::make('Assignment')
+                Section::make('Process Information')
+                    ->description('Choose the document process and assign it to a customer.')
                     ->schema([
-                        TextInput::make('bl_number')
-                            ->label('BL Number')
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(255),
                         Select::make('customer_id')
                             ->label('Customer')
                             ->relationship(
@@ -48,43 +44,37 @@ class BillOfLadingForm
                             ->disabled(fn (?BillOfLading $record): bool => $record !== null)
                             ->dehydrated(fn (?BillOfLading $record): bool => $record === null)
                             ->live(),
+                        Select::make('shipping_method')
+                            ->label('Shipping Method')
+                            ->options(config('bl_workflows.shipping_methods'))
+                            ->default(BillOfLading::SHIPPING_METHOD_FCL)
+                            ->required()
+                            ->native(false),
                         DatePicker::make('input_date')
                             ->label('Input Date')
                             ->default(now())
                             ->required(),
+                        TextInput::make('bl_number')
+                            ->label('BL Number')
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255),
                     ])
-                    ->columns(2),
-                Section::make('Carrier & Schedule')
+                    ->columns(2)
+                    ->collapsible(),
+                Section::make('BL & Route Details')
+                    ->description('BL summary, carrier, route, and schedule shown to the customer.')
                     ->schema([
+                        Textarea::make('shipment_description')
+                            ->label('Shipment Summary')
+                            ->helperText('Short overview shown in lists and the customer page header.')
+                            ->required()
+                            ->columnSpanFull(),
                         TextInput::make('carrier_name')
                             ->label('Carrier')
                             ->maxLength(255),
                         DatePicker::make('shipped_on_board_date')
                             ->label('Shipped On Board Date'),
-                    ])
-                    ->columns(2),
-                Section::make('Related Parties')
-                    ->schema([
-                        TextInput::make('shipper_name')
-                            ->label('Shipper')
-                            ->maxLength(255),
-                        TextInput::make('consignee_name')
-                            ->label('Consignee')
-                            ->maxLength(255),
-                        Textarea::make('consignee_address')
-                            ->label('Consignee Address')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                        TextInput::make('notify_party_name')
-                            ->label('Notify Party')
-                            ->maxLength(255),
-                        TextInput::make('destination_agent_name')
-                            ->label('Destination Agent')
-                            ->maxLength(255),
-                    ])
-                    ->columns(2),
-                Section::make('Routing')
-                    ->schema([
                         TextInput::make('port_of_loading')
                             ->label('Port of Loading')
                             ->maxLength(255),
@@ -101,14 +91,11 @@ class BillOfLadingForm
                             ->label('Voyage No.')
                             ->maxLength(255),
                     ])
-                    ->columns(2),
-                Section::make('Cargo Summary')
+                    ->columns(2)
+                    ->collapsible(),
+                Section::make('Cargo & Containers')
+                    ->description('Cargo totals and container details shown to the customer.')
                     ->schema([
-                        Textarea::make('shipment_description')
-                            ->label('Shipment Summary')
-                            ->helperText('Short overview shown in lists and the customer page header.')
-                            ->required()
-                            ->columnSpanFull(),
                         Textarea::make('goods_description')
                             ->label('Goods Description')
                             ->rows(4)
@@ -134,10 +121,6 @@ class BillOfLadingForm
                             ->label('Free Time / Demurrage Notes')
                             ->rows(2)
                             ->columnSpanFull(),
-                    ])
-                    ->columns(2),
-                Section::make('Containers')
-                    ->schema([
                         Repeater::make('containers')
                             ->relationship()
                             ->orderColumn('sort_order')
@@ -174,10 +157,28 @@ class BillOfLadingForm
                             ->itemLabel(fn (array $state): ?string => $state['container_number'] ?? null)
                             ->addActionLabel('Add container')
                             ->columnSpanFull(),
-                    ]),
-                Section::make('Customer Tracking')
-                    ->description('Status, milestone, and customs lane are managed from the BL workflow actions.')
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+                Section::make('Parties & Customer Update')
+                    ->description('Additional customer-facing details. Status and milestones remain managed through workflow actions.')
                     ->schema([
+                        TextInput::make('shipper_name')
+                            ->label('Shipper')
+                            ->maxLength(255),
+                        TextInput::make('consignee_name')
+                            ->label('Consignee')
+                            ->maxLength(255),
+                        Textarea::make('consignee_address')
+                            ->label('Consignee Address')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                        TextInput::make('notify_party_name')
+                            ->label('Notify Party')
+                            ->maxLength(255),
+                        TextInput::make('destination_agent_name')
+                            ->label('Destination Agent')
+                            ->maxLength(255),
                         TextInput::make('gps_tracking_url')
                             ->label('GPS Tracking URL')
                             ->url()
@@ -187,7 +188,8 @@ class BillOfLadingForm
                             ->rows(2)
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->collapsible(),
             ]);
     }
 }

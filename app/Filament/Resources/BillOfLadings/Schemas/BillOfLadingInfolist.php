@@ -25,8 +25,12 @@ class BillOfLadingInfolist
                             ->label('Shipment Type')
                             ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipment_types.{$state}", $state ?? '-'))
                             ->badge(),
+                        TextEntry::make('shipping_method')
+                            ->label('Shipping Method')
+                            ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipping_methods.{$state}", strtoupper($state ?? '-')))
+                            ->badge(),
                     ])
-                    ->columns(3),
+                    ->columns(4),
                 Section::make('Shipment Details')
                     ->schema([
                         TextEntry::make('bl_number')

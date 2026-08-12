@@ -173,6 +173,7 @@ class CustomerDashboardTest extends TestCase
         $billOfLading = BillOfLading::factory()->create([
             'customer_id' => $customer->id,
             'bl_number' => 'BL-DETAIL-001',
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
             'shipment_description' => 'Machinery shipment to Singapore',
             'port_of_loading' => 'Jakarta Port, Indonesia',
             'port_of_discharge' => 'Singapore Port, Singapore',
@@ -203,6 +204,7 @@ class CustomerDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('BL-DETAIL-001')
             ->assertSee('Machinery shipment to Singapore')
+            ->assertSee('LCL (Less than Container Load)')
             ->assertSee('Singapore Port, Singapore')
             ->assertSee('Pihak terkait')
             ->assertSee('PT Example Shipper')

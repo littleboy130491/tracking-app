@@ -6,6 +6,11 @@ return [
         'export' => 'Ekspor',
     ],
 
+    'shipping_methods' => [
+        'fcl' => 'FCL (Full Container Load)',
+        'lcl' => 'LCL (Less than Container Load)',
+    ],
+
     'customs_lanes' => [
         'green' => 'Jalur Hijau (SPJH)',
         'yellow' => 'Jalur Kuning (SPJK)',

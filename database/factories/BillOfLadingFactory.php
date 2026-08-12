@@ -28,6 +28,7 @@ class BillOfLadingFactory extends Factory
             'bl_number' => 'BL-'.fake()->unique()->numerify('######'),
             'customer_id' => User::factory()->customer(),
             'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => fake()->optional()->company(),
             'shipment_description' => fake()->sentence(6),
             'port_of_loading' => $portOfLoading,

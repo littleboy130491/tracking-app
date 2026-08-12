@@ -42,6 +42,12 @@ class BillOfLadingsTable
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipment_types.{$state}", $state ?? '-'))
                     ->sortable(),
+                TextColumn::make('shipping_method')
+                    ->label('Method')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipping_methods.{$state}", strtoupper($state ?? '-')))
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('carrier_name')
                     ->label('Carrier')
                     ->toggleable()
@@ -90,6 +96,9 @@ class BillOfLadingsTable
                 SelectFilter::make('shipment_type')
                     ->label('Shipment Type')
                     ->options(config('bl_workflows.shipment_types')),
+                SelectFilter::make('shipping_method')
+                    ->label('Shipping Method')
+                    ->options(config('bl_workflows.shipping_methods')),
                 SelectFilter::make('customs_lane')
                     ->label('Customs Lane')
                     ->options(config('bl_workflows.customs_lanes')),

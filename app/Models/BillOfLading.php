@@ -17,6 +17,7 @@ use Illuminate\Validation\ValidationException;
     'bl_number',
     'customer_id',
     'shipment_type',
+    'shipping_method',
     'carrier_name',
     'shipment_description',
     'shipper_name',
@@ -53,6 +54,10 @@ class BillOfLading extends Model
     public const TYPE_IMPORT = 'import';
 
     public const TYPE_EXPORT = 'export';
+
+    public const SHIPPING_METHOD_FCL = 'fcl';
+
+    public const SHIPPING_METHOD_LCL = 'lcl';
 
     public const STATUS_PENDING = 'Pending';
 
@@ -131,6 +136,10 @@ class BillOfLading extends Model
 
             if (blank($billOfLading->shipment_type)) {
                 $billOfLading->shipment_type = self::TYPE_IMPORT;
+            }
+
+            if (blank($billOfLading->shipping_method)) {
+                $billOfLading->shipping_method = self::SHIPPING_METHOD_FCL;
             }
         });
 
@@ -252,6 +261,11 @@ class BillOfLading extends Model
     public function shipmentTypeLabel(): string
     {
         return config("bl_workflows.shipment_types.{$this->shipment_type}", ucfirst((string) $this->shipment_type));
+    }
+
+    public function shippingMethodLabel(): string
+    {
+        return config("bl_workflows.shipping_methods.{$this->shipping_method}", strtoupper((string) $this->shipping_method));
     }
 
     /**

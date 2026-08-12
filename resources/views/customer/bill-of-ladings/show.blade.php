@@ -26,6 +26,7 @@
         <div class="tracking-heading">
             <div class="shipment-tags">
                 <span class="type-tag type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</span>
+                <span class="type-tag">{{ $billOfLading->shippingMethodLabel() }}</span>
                 <span class="status-tag status-{{ $statusClass }}">{{ $billOfLading->displayStatus() }}</span>
                 @if ($billOfLading->customsLaneLabel())
                     <span class="lane-tag">{{ $billOfLading->customsLaneLabel() }}</span>
@@ -119,6 +120,7 @@
 
                 <dl class="facts-grid">
                     <div><dt>Carrier</dt><dd>{{ $billOfLading->carrier_name ?: '-' }}</dd></div>
+                    <div><dt>Metode pengiriman</dt><dd>{{ $billOfLading->shippingMethodLabel() }}</dd></div>
                     <div>
                         <dt>Kapal / voyage</dt>
                         <dd>{{ $billOfLading->vessel_name ?: '-' }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}</dd>
