@@ -272,7 +272,7 @@ class BillOfLadingWorkflowService
     }
 
     /**
-     * @return list<array{key: string, label: string, customer_label?: string, allows_document?: bool, customer_visible?: bool}>
+     * @return list<array{key: string, label: string, customer_label?: string, customer_visible?: bool}>
      */
     private function initialDefinitions(string $shipmentType): array
     {
@@ -283,7 +283,7 @@ class BillOfLadingWorkflowService
     }
 
     /**
-     * @param  list<array{key: string, label: string, customer_label?: string, allows_document?: bool, customer_visible?: bool}>  $definitions
+     * @param  list<array{key: string, label: string, customer_label?: string, customer_visible?: bool}>  $definitions
      */
     private function replaceWorkflowMilestones(
         BillOfLading $billOfLading,
@@ -306,7 +306,7 @@ class BillOfLadingWorkflowService
     }
 
     /**
-     * @param  list<array{key: string, label: string, customer_label?: string, allows_document?: bool, customer_visible?: bool}>  $definitions
+     * @param  list<array{key: string, label: string, customer_label?: string, customer_visible?: bool}>  $definitions
      */
     private function appendMilestones(
         BillOfLading $billOfLading,
@@ -326,7 +326,6 @@ class BillOfLadingWorkflowService
                     ? BillOfLadingMilestoneState::STATE_IN_PROGRESS
                     : BillOfLadingMilestoneState::STATE_PENDING,
                 'customer_visible' => $definition['customer_visible'] ?? true,
-                'allows_document' => $definition['allows_document'] ?? false,
             ]);
         }
     }

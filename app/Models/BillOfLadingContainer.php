@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'gross_weight_kg',
     'measurement_cbm',
     'tare_weight_kg',
-    'goods_description',
     'sort_order',
 ])]
 class BillOfLadingContainer extends Model

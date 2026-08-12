@@ -17,7 +17,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'completed_at',
     'updated_by',
     'customer_visible',
-    'allows_document',
     'note',
 ])]
 class BillOfLadingMilestoneState extends Model
@@ -36,7 +35,6 @@ class BillOfLadingMilestoneState extends Model
             'sequence' => 'integer',
             'completed_at' => 'datetime',
             'customer_visible' => 'boolean',
-            'allows_document' => 'boolean',
         ];
     }
 
