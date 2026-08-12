@@ -102,4 +102,14 @@ class DemoSeederTest extends TestCase
             DemoDataSeeder::$recordCount = null;
         }
     }
+
+    public function test_demo_data_seeder_can_be_run_again_without_leaving_legacy_rows(): void
+    {
+        $this->seed(DemoDataSeeder::class);
+        $this->seed(DemoDataSeeder::class);
+
+        $this->assertSame(24, BillOfLading::query()->count());
+        $this->assertSame(24, BillOfLading::withTrashed()->count());
+        $this->assertSame(24, BillOfLading::query()->distinct()->count('bl_number'));
+    }
 }

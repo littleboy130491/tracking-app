@@ -15,58 +15,35 @@ use Illuminate\Validation\ValidationException;
 
 #[Fillable([
     'bl_number',
-    'booking_number',
     'customer_id',
     'shipment_type',
     'carrier_name',
-    'bl_document_type',
-    'bl_surrendered',
     'shipment_description',
     'shipper_name',
-    'shipper_address',
     'consignee_name',
     'consignee_address',
-    'consignee_npwp',
     'notify_party_name',
-    'notify_party_address',
     'destination_agent_name',
-    'destination_agent_contact',
-    'origin',
-    'destination',
-    'place_of_receipt',
     'port_of_loading',
     'port_of_discharge',
     'place_of_delivery',
     'vessel_name',
     'voyage_number',
-    'movement_type',
-    'service_type',
-    'items_description',
     'goods_description',
     'hs_code',
-    'quantity',
     'package_count',
-    'container_count_label',
     'gross_weight_kg',
-    'volume_cbm',
     'measurement_cbm',
-    'marks_and_numbers',
     'free_time_notes',
-    'freight_terms',
-    'export_reference',
     'input_date',
     'retention_until',
-    'issue_date',
-    'place_of_issue',
     'shipped_on_board_date',
     'status',
     'phase',
     'customs_lane',
     'current_milestone_key',
     'gps_tracking_url',
-    'note',
     'customer_note',
-    'internal_note',
 ])]
 class BillOfLading extends Model
 {
@@ -104,22 +81,13 @@ class BillOfLading extends Model
         'Closed',
     ];
 
-    public const DOCUMENT_TYPES = [
-        'original' => 'Original',
-        'non_negotiable' => 'Non-Negotiable',
-        'copy' => 'Copy',
-    ];
-
     protected function casts(): array
     {
         return [
             'input_date' => 'date',
             'retention_until' => 'date',
-            'issue_date' => 'date',
             'shipped_on_board_date' => 'date',
-            'bl_surrendered' => 'boolean',
             'gross_weight_kg' => 'decimal:2',
-            'volume_cbm' => 'decimal:2',
             'measurement_cbm' => 'decimal:4',
         ];
     }
@@ -161,56 +129,8 @@ class BillOfLading extends Model
                 ]);
             }
 
-            if (blank($billOfLading->port_of_loading) && filled($billOfLading->origin)) {
-                $billOfLading->port_of_loading = $billOfLading->origin;
-            }
-
-            if (blank($billOfLading->port_of_discharge) && filled($billOfLading->destination)) {
-                $billOfLading->port_of_discharge = $billOfLading->destination;
-            }
-
-            if (blank($billOfLading->origin) && filled($billOfLading->port_of_loading)) {
-                $billOfLading->origin = $billOfLading->port_of_loading;
-            }
-
-            if (blank($billOfLading->destination) && filled($billOfLading->port_of_discharge)) {
-                $billOfLading->destination = $billOfLading->port_of_discharge;
-            }
-
-            if (blank($billOfLading->goods_description) && filled($billOfLading->items_description)) {
-                $billOfLading->goods_description = $billOfLading->items_description;
-            }
-
-            if (blank($billOfLading->items_description) && filled($billOfLading->goods_description)) {
-                $billOfLading->items_description = $billOfLading->goods_description;
-            }
-
-            if (blank($billOfLading->package_count) && filled($billOfLading->quantity)) {
-                $billOfLading->package_count = $billOfLading->quantity;
-            }
-
-            if (blank($billOfLading->quantity) && filled($billOfLading->package_count)) {
-                $billOfLading->quantity = $billOfLading->package_count;
-            }
-
-            if (blank($billOfLading->measurement_cbm) && filled($billOfLading->volume_cbm)) {
-                $billOfLading->measurement_cbm = $billOfLading->volume_cbm;
-            }
-
-            if (blank($billOfLading->volume_cbm) && filled($billOfLading->measurement_cbm)) {
-                $billOfLading->volume_cbm = $billOfLading->measurement_cbm;
-            }
-
             if (blank($billOfLading->shipment_type)) {
                 $billOfLading->shipment_type = self::TYPE_IMPORT;
-            }
-
-            if (blank($billOfLading->note) && filled($billOfLading->customer_note)) {
-                $billOfLading->note = $billOfLading->customer_note;
-            }
-
-            if (blank($billOfLading->customer_note) && filled($billOfLading->note)) {
-                $billOfLading->customer_note = $billOfLading->note;
             }
         });
 

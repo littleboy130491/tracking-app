@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'package_count',
     'gross_weight_kg',
     'measurement_cbm',
-    'tare_weight_kg',
     'sort_order',
 ])]
 class BillOfLadingContainer extends Model
@@ -31,7 +30,6 @@ class BillOfLadingContainer extends Model
         return [
             'gross_weight_kg' => 'decimal:3',
             'measurement_cbm' => 'decimal:4',
-            'tare_weight_kg' => 'decimal:3',
             'sort_order' => 'integer',
         ];
     }

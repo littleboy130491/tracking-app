@@ -31,9 +31,6 @@ class BillOfLadingInfolist
                     ->schema([
                         TextEntry::make('bl_number')
                             ->label('BL Number'),
-                        TextEntry::make('booking_number')
-                            ->label('Booking Number')
-                            ->placeholder('-'),
                         TextEntry::make('carrier_name')
                             ->label('Carrier')
                             ->placeholder('-'),
@@ -49,10 +46,13 @@ class BillOfLadingInfolist
                             ->columnSpanFull(),
                         TextEntry::make('port_of_loading')
                             ->label('Port of Loading')
-                            ->placeholder(fn ($record): string => $record->origin ?: '-'),
+                            ->placeholder('-'),
                         TextEntry::make('port_of_discharge')
                             ->label('Port of Discharge')
-                            ->placeholder(fn ($record): string => $record->destination ?: '-'),
+                            ->placeholder('-'),
+                        TextEntry::make('place_of_delivery')
+                            ->label('Place of Delivery')
+                            ->placeholder('-'),
                         TextEntry::make('vessel_name')
                             ->label('Vessel')
                             ->placeholder('-'),
@@ -61,11 +61,11 @@ class BillOfLadingInfolist
                             ->placeholder('-'),
                         TextEntry::make('goods_description')
                             ->label('Goods Description')
-                            ->placeholder(fn ($record): string => $record->items_description ?: '-')
+                            ->placeholder('-')
                             ->columnSpanFull(),
                         TextEntry::make('package_count')
                             ->label('Packages')
-                            ->placeholder(fn ($record): string => $record->quantity ?: '-'),
+                            ->placeholder('-'),
                         TextEntry::make('gross_weight_kg')
                             ->label('Gross Weight (kg)')
                             ->numeric(decimalPlaces: 2)
@@ -73,12 +73,36 @@ class BillOfLadingInfolist
                         TextEntry::make('measurement_cbm')
                             ->label('Measurement (CBM)')
                             ->numeric(decimalPlaces: 4)
-                            ->placeholder(fn ($record): string => $record->volume_cbm ? (string) $record->volume_cbm : '-'),
+                            ->placeholder('-'),
                         TextEntry::make('hs_code')
                             ->label('HS Code')
                             ->placeholder('-'),
+                        TextEntry::make('free_time_notes')
+                            ->label('Free Time / Demurrage Notes')
+                            ->placeholder('-')
+                            ->columnSpanFull(),
                     ])
                     ->columns(3),
+                Section::make('Related Parties & Destination')
+                    ->schema([
+                        TextEntry::make('shipper_name')
+                            ->label('Shipper')
+                            ->placeholder('-'),
+                        TextEntry::make('consignee_name')
+                            ->label('Consignee')
+                            ->placeholder('-'),
+                        TextEntry::make('notify_party_name')
+                            ->label('Notify Party')
+                            ->placeholder('-'),
+                        TextEntry::make('destination_agent_name')
+                            ->label('Destination Agent')
+                            ->placeholder('-'),
+                        TextEntry::make('consignee_address')
+                            ->label('Consignee Address')
+                            ->placeholder('-')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
                 Section::make('Containers')
                     ->schema([
                         RepeatableEntry::make('containers')
@@ -137,12 +161,6 @@ class BillOfLadingInfolist
                         TextEntry::make('customer_note')
                             ->label('Customer Note')
                             ->placeholder('No customer note'),
-                        TextEntry::make('internal_note')
-                            ->label('Internal Note')
-                            ->placeholder('No internal note'),
-                        TextEntry::make('note')
-                            ->label('Current Note (legacy)')
-                            ->placeholder('No current note'),
                     ])
                     ->columns(2),
                 Section::make('Update History')

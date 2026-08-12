@@ -24,9 +24,8 @@ class CreateBillOfLading extends CreateRecord
             'status' => $record->status,
             'phase' => $record->phase,
             'milestone_key' => $record->current_milestone_key,
-            'customs_lane' => $record->customs_lane,
             'visibility' => 'customer',
-            'note' => $record->note ?: 'BL record created.',
+            'note' => $record->customer_note ?: 'BL record created.',
         ]);
     }
 }

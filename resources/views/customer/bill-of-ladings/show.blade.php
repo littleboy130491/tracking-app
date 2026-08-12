@@ -6,16 +6,15 @@
         $completedCount = $allNodes->where('state', 'completed')->count();
         $totalCount = $allNodes->count();
         $progressPercent = $totalCount > 0 ? (int) round(($completedCount / $totalCount) * 100) : 0;
-        $pol = $billOfLading->port_of_loading ?: ($billOfLading->origin ?: '-');
-        $pod = $billOfLading->port_of_discharge ?: ($billOfLading->destination ?: '-');
-        $cbm = $billOfLading->measurement_cbm ?: $billOfLading->volume_cbm;
-        $latestNote = $billOfLading->customer_note ?: $billOfLading->note;
+        $pol = $billOfLading->port_of_loading ?: '-';
+        $pod = $billOfLading->port_of_discharge ?: '-';
+        $cbm = $billOfLading->measurement_cbm;
+        $latestNote = $billOfLading->customer_note;
         $statusClass = \Illuminate\Support\Str::slug($billOfLading->status);
         $hasRelatedParties = filled($billOfLading->shipper_name)
             || filled($billOfLading->consignee_name)
             || filled($billOfLading->notify_party_name);
         $hasDestinationDetails = filled($billOfLading->port_of_discharge)
-            || filled($billOfLading->destination)
             || filled($billOfLading->place_of_delivery)
             || filled($billOfLading->consignee_address)
             || filled($billOfLading->destination_agent_name);
@@ -125,14 +124,14 @@
                         <dd>{{ $billOfLading->vessel_name ?: '-' }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}</dd>
                     </div>
                     <div><dt>Shipped on board</dt><dd>{{ $billOfLading->shipped_on_board_date?->locale('id')->translatedFormat('j M Y') ?: '-' }}</dd></div>
-                    <div><dt>Jumlah kemasan</dt><dd>{{ $billOfLading->package_count ?: ($billOfLading->quantity ?: '-') }}</dd></div>
+                    <div><dt>Jumlah kemasan</dt><dd>{{ $billOfLading->package_count ?: '-' }}</dd></div>
                     <div><dt>Berat kotor</dt><dd>{{ $billOfLading->gross_weight_kg ? number_format((float) $billOfLading->gross_weight_kg, 2).' kg' : '-' }}</dd></div>
                     <div><dt>Volume</dt><dd>{{ $cbm ? number_format((float) $cbm, 2).' CBM' : '-' }}</dd></div>
                     <div><dt>Kode HS</dt><dd>{{ $billOfLading->hs_code ?: '-' }}</dd></div>
                     <div><dt>Tanggal input</dt><dd>{{ $billOfLading->input_date->locale('id')->translatedFormat('j M Y') }}</dd></div>
                     <div class="fact-wide">
                         <dt>Barang</dt>
-                        <dd>{{ $billOfLading->goods_description ?: ($billOfLading->items_description ?: $billOfLading->shipment_description) }}</dd>
+                        <dd>{{ $billOfLading->goods_description ?: $billOfLading->shipment_description }}</dd>
                     </div>
                     @if ($billOfLading->free_time_notes)
                         <div class="fact-wide"><dt>Free time</dt><dd>{{ $billOfLading->free_time_notes }}</dd></div>

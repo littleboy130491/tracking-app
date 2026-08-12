@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'status',
     'phase',
     'milestone_key',
-    'customs_lane',
     'visibility',
     'note',
 ])]

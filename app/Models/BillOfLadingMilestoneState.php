@@ -15,9 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'customer_label',
     'state',
     'completed_at',
-    'updated_by',
     'customer_visible',
-    'note',
 ])]
 class BillOfLadingMilestoneState extends Model
 {
@@ -44,14 +42,6 @@ class BillOfLadingMilestoneState extends Model
     public function billOfLading(): BelongsTo
     {
         return $this->belongsTo(BillOfLading::class);
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function updater(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function displayLabel(bool $forCustomer = false): string

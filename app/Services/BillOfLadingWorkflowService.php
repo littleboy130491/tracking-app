@@ -127,13 +127,16 @@ class BillOfLadingWorkflowService
                 throw new InvalidArgumentException('No milestone available to complete.');
             }
 
+            $visibility = $attributes['visibility'] ?? BillOfLadingUpdate::VISIBILITY_CUSTOMER;
+            $customerNote = $visibility === BillOfLadingUpdate::VISIBILITY_CUSTOMER
+                ? ($attributes['note'] ?? $billOfLading->customer_note)
+                : $billOfLading->customer_note;
+
             $this->authorizeMilestone($userId, $current->milestone_key);
 
             $current->forceFill([
                 'state' => BillOfLadingMilestoneState::STATE_COMPLETED,
                 'completed_at' => now(),
-                'updated_by' => $userId,
-                'note' => $attributes['note'] ?? $current->note,
             ])->save();
 
             $next = $billOfLading->milestoneStates()
@@ -144,15 +147,13 @@ class BillOfLadingWorkflowService
             if ($next) {
                 $next->forceFill([
                     'state' => BillOfLadingMilestoneState::STATE_IN_PROGRESS,
-                    'updated_by' => $userId,
                 ])->save();
 
                 $billOfLading->forceFill([
                     'current_milestone_key' => $next->milestone_key,
                     'phase' => $next->label,
                     'status' => BillOfLading::STATUS_IN_PROGRESS,
-                    'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
-                    'note' => $attributes['note'] ?? $billOfLading->note,
+                    'customer_note' => $customerNote,
                 ])->save();
             } elseif (
                 $billOfLading->shipment_type === BillOfLading::TYPE_IMPORT
@@ -162,16 +163,14 @@ class BillOfLadingWorkflowService
                     'current_milestone_key' => $current->milestone_key,
                     'phase' => 'Awaiting customs lane',
                     'status' => BillOfLading::STATUS_IN_PROGRESS,
-                    'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
-                    'note' => $attributes['note'] ?? $billOfLading->note,
+                    'customer_note' => $customerNote,
                 ])->save();
             } else {
                 $billOfLading->forceFill([
                     'current_milestone_key' => $current->milestone_key,
                     'phase' => $current->label,
                     'status' => BillOfLading::STATUS_COMPLETED,
-                    'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
-                    'note' => $attributes['note'] ?? $billOfLading->note,
+                    'customer_note' => $customerNote,
                 ])->save();
             }
 
@@ -180,7 +179,7 @@ class BillOfLadingWorkflowService
                 userId: $userId,
                 note: $attributes['note'] ?? ('Completed: '.$current->label),
                 milestoneKey: $current->milestone_key,
-                visibility: $attributes['visibility'] ?? BillOfLadingUpdate::VISIBILITY_CUSTOMER,
+                visibility: $visibility,
             );
 
             return $current->fresh();
@@ -221,7 +220,6 @@ class BillOfLadingWorkflowService
                 if ($firstDelivery) {
                     $firstDelivery->forceFill([
                         'state' => BillOfLadingMilestoneState::STATE_IN_PROGRESS,
-                        'updated_by' => $userId,
                     ])->save();
 
                     $billOfLading->forceFill([
@@ -342,7 +340,6 @@ class BillOfLadingWorkflowService
             'status' => $billOfLading->status,
             'phase' => $billOfLading->phase,
             'milestone_key' => $milestoneKey,
-            'customs_lane' => $billOfLading->customs_lane,
             'visibility' => $visibility,
             'note' => $note,
         ]);
@@ -400,10 +397,13 @@ class BillOfLadingWorkflowService
         $this->authorizeMilestone($userId, $billOfLading->current_milestone_key);
 
         return DB::transaction(function () use ($billOfLading, $attributes, $userId): BillOfLadingUpdate {
+            $visibility = $attributes['visibility'] ?? BillOfLadingUpdate::VISIBILITY_CUSTOMER;
+
             $billOfLading->update([
                 'status' => $attributes['status'],
-                'note' => $attributes['note'] ?? null,
-                'customer_note' => $attributes['note'] ?? $billOfLading->customer_note,
+                'customer_note' => $visibility === BillOfLadingUpdate::VISIBILITY_CUSTOMER
+                    ? ($attributes['note'] ?? $billOfLading->customer_note)
+                    : $billOfLading->customer_note,
             ]);
 
             return $billOfLading->updates()->create([
@@ -411,8 +411,7 @@ class BillOfLadingWorkflowService
                 'status' => $attributes['status'],
                 'phase' => $billOfLading->phase,
                 'milestone_key' => $billOfLading->current_milestone_key,
-                'customs_lane' => $billOfLading->customs_lane,
-                'visibility' => $attributes['visibility'] ?? BillOfLadingUpdate::VISIBILITY_CUSTOMER,
+                'visibility' => $visibility,
                 'note' => $attributes['note'] ?? null,
             ]);
         });

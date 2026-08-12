@@ -17,7 +17,7 @@ class BillOfLadingAdminHistoryTest extends TestCase
         $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
             'status' => BillOfLading::STATUS_PENDING,
-            'note' => 'Initial note.',
+            'customer_note' => 'Initial note.',
         ]);
         $workflowPhase = $billOfLading->fresh()->phase;
 
@@ -44,7 +44,7 @@ class BillOfLadingAdminHistoryTest extends TestCase
         $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
             'status' => BillOfLading::STATUS_PENDING,
-            'note' => 'First note.',
+            'customer_note' => 'First note.',
         ]);
 
         $billOfLading->postProgressUpdate([
@@ -71,7 +71,7 @@ class BillOfLadingAdminHistoryTest extends TestCase
         $admin = User::factory()->admin()->create();
         $billOfLading = BillOfLading::factory()->create([
             'status' => BillOfLading::STATUS_PENDING,
-            'note' => 'Original note.',
+            'customer_note' => 'Original note.',
         ]);
 
         $billOfLading->postProgressUpdate([
@@ -92,7 +92,28 @@ class BillOfLadingAdminHistoryTest extends TestCase
             'bill_of_lading_id' => $billOfLading->id,
             'note' => 'Latest note.',
         ]);
-        $this->assertSame('Latest note.', $billOfLading->fresh()->note);
+        $this->assertSame('Latest note.', $billOfLading->fresh()->customer_note);
+    }
+
+    public function test_admin_only_update_does_not_replace_the_customer_note(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $billOfLading = BillOfLading::factory()->create([
+            'customer_note' => 'Visible customer note.',
+        ]);
+
+        $billOfLading->postProgressUpdate([
+            'status' => BillOfLading::STATUS_ON_HOLD,
+            'visibility' => 'admin_only',
+            'note' => 'Internal operational note.',
+        ], $admin->id);
+
+        $this->assertSame('Visible customer note.', $billOfLading->fresh()->customer_note);
+        $this->assertDatabaseHas('bill_of_lading_updates', [
+            'bill_of_lading_id' => $billOfLading->id,
+            'visibility' => 'admin_only',
+            'note' => 'Internal operational note.',
+        ]);
     }
 
     public function test_admin_can_advance_milestone_and_write_history(): void

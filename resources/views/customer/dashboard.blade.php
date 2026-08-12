@@ -111,8 +111,8 @@
                     @php
                         $milestone = $billOfLading->currentMilestone();
                         $milestoneLabel = $milestone?->displayLabel(true) ?: $billOfLading->phase;
-                        $routeStart = $billOfLading->port_of_loading ?: ($billOfLading->origin ?: '-');
-                        $routeEnd = $billOfLading->port_of_discharge ?: ($billOfLading->destination ?: '-');
+                        $routeStart = $billOfLading->port_of_loading ?: '-';
+                        $routeEnd = $billOfLading->port_of_discharge ?: '-';
                         $statusClass = \Illuminate\Support\Str::slug($billOfLading->status);
                     @endphp
                     <article

@@ -25,7 +25,7 @@ class EditBillOfLading extends EditRecord
 
     protected ?string $originalPhase = null;
 
-    protected ?string $originalNote = null;
+    protected ?string $originalCustomerNote = null;
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -34,7 +34,7 @@ class EditBillOfLading extends EditRecord
 
         $this->originalStatus = $record->status;
         $this->originalPhase = $record->phase;
-        $this->originalNote = $record->note;
+        $this->originalCustomerNote = $record->customer_note;
 
         return $data;
     }
@@ -47,16 +47,15 @@ class EditBillOfLading extends EditRecord
         if (
             $record->status !== $this->originalStatus
             || $record->phase !== $this->originalPhase
-            || $record->note !== $this->originalNote
+            || $record->customer_note !== $this->originalCustomerNote
         ) {
             $record->updates()->create([
                 'user_id' => Auth::id(),
                 'status' => $record->status,
                 'phase' => $record->phase,
                 'milestone_key' => $record->current_milestone_key,
-                'customs_lane' => $record->customs_lane,
                 'visibility' => 'customer',
-                'note' => $record->note,
+                'note' => $record->customer_note,
             ]);
         }
 

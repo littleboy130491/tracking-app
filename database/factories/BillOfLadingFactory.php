@@ -18,35 +18,28 @@ class BillOfLadingFactory extends Factory
      */
     public function definition(): array
     {
-        $origin = fake()->city();
-        $destination = fake()->city();
-        $items = fake()->paragraph();
-        $quantity = fake()->numberBetween(10, 500).' cartons';
-        $volume = fake()->randomFloat(2, 1, 80);
+        $portOfLoading = fake()->city().' Port';
+        $portOfDischarge = fake()->city().' Port';
+        $goods = fake()->paragraph();
+        $packageCount = fake()->numberBetween(10, 500).' cartons';
+        $measurement = fake()->randomFloat(2, 1, 80);
 
         return [
             'bl_number' => 'BL-'.fake()->unique()->numerify('######'),
-            'booking_number' => fake()->optional()->bothify('BK########'),
             'customer_id' => User::factory()->customer(),
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'carrier_name' => fake()->optional()->company(),
             'shipment_description' => fake()->sentence(6),
-            'origin' => $origin.' Port',
-            'destination' => $destination.' Port',
-            'port_of_loading' => $origin.' Port',
-            'port_of_discharge' => $destination.' Port',
-            'items_description' => $items,
-            'goods_description' => $items,
-            'quantity' => $quantity,
-            'package_count' => $quantity,
+            'port_of_loading' => $portOfLoading,
+            'port_of_discharge' => $portOfDischarge,
+            'goods_description' => $goods,
+            'package_count' => $packageCount,
             'gross_weight_kg' => fake()->randomFloat(2, 100, 25000),
-            'volume_cbm' => $volume,
-            'measurement_cbm' => $volume,
+            'measurement_cbm' => $measurement,
             'input_date' => fake()->dateTimeBetween('-30 days', 'now')->format('Y-m-d'),
             'status' => BillOfLading::STATUS_IN_PROGRESS,
             'phase' => 'Input',
             'gps_tracking_url' => fake()->optional()->url(),
-            'note' => fake()->optional()->sentence(),
             'customer_note' => fake()->optional()->sentence(),
         ];
     }

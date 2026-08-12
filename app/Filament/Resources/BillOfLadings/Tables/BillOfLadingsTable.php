@@ -52,12 +52,12 @@ class BillOfLadingsTable
                     ->searchable()
                     ->sortable()
                     ->toggleable()
-                    ->placeholder(fn ($record): string => $record->origin ?: '-'),
+                    ->placeholder('-'),
                 TextColumn::make('port_of_discharge')
                     ->label('POD')
                     ->searchable()
                     ->sortable()
-                    ->placeholder(fn ($record): string => $record->destination ?: '-'),
+                    ->placeholder('-'),
                 TextColumn::make('status')
                     ->badge()
                     ->sortable(),
