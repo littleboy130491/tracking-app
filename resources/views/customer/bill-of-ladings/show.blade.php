@@ -11,15 +11,23 @@
         $cbm = $billOfLading->measurement_cbm ?: $billOfLading->volume_cbm;
         $latestNote = $billOfLading->customer_note ?: $billOfLading->note;
         $statusClass = \Illuminate\Support\Str::slug($billOfLading->status);
+        $hasRelatedParties = filled($billOfLading->shipper_name)
+            || filled($billOfLading->consignee_name)
+            || filled($billOfLading->notify_party_name);
+        $hasDestinationDetails = filled($billOfLading->port_of_discharge)
+            || filled($billOfLading->destination)
+            || filled($billOfLading->place_of_delivery)
+            || filled($billOfLading->consignee_address)
+            || filled($billOfLading->destination_agent_name);
     @endphp
 
-    <a class="back-link" href="{{ route('customer.dashboard') }}">&larr; Shipments</a>
+    <a class="back-link" href="{{ route('customer.dashboard') }}">&larr; Pengiriman</a>
 
     <header class="tracking-header {{ $laneClass }}">
         <div class="tracking-heading">
             <div class="shipment-tags">
                 <span class="type-tag type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</span>
-                <span class="status-tag status-{{ $statusClass }}">{{ $billOfLading->status }}</span>
+                <span class="status-tag status-{{ $statusClass }}">{{ $billOfLading->displayStatus() }}</span>
                 @if ($billOfLading->customsLaneLabel())
                     <span class="lane-tag">{{ $billOfLading->customsLaneLabel() }}</span>
                 @endif
@@ -34,14 +42,14 @@
 
         <div class="tracking-summary">
             <div>
-                <span>Current step</span>
-                <strong>{{ $currentNode['label'] ?? ($billOfLading->phase ?: $billOfLading->status) }}</strong>
+                <span>Langkah saat ini</span>
+                <strong>{{ $currentNode['label'] ?? ($billOfLading->phase ?: $billOfLading->displayStatus()) }}</strong>
             </div>
             <div class="progress-summary">
-                <span>{{ $completedCount }} of {{ $totalCount }} steps</span>
+                <span>{{ $completedCount }} dari {{ $totalCount }} langkah</span>
                 <strong>{{ $progressPercent }}%</strong>
             </div>
-            <div class="progress-meter" aria-label="{{ $progressPercent }} percent complete">
+            <div class="progress-meter" aria-label="{{ $progressPercent }} persen selesai">
                 <span style="width: {{ $progressPercent }}%"></span>
             </div>
             @if ($billOfLading->gps_tracking_url)
@@ -51,7 +59,7 @@
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    Open GPS tracking
+                    Buka pelacakan GPS
                 </a>
             @endif
         </div>
@@ -59,9 +67,9 @@
 
     @if ($latestNote)
         <aside class="latest-update">
-            <span>Latest update</span>
+            <span>Pembaruan terbaru</span>
             <p>{{ $latestNote }}</p>
-            <time datetime="{{ $billOfLading->updated_at->toIso8601String() }}">{{ $billOfLading->updated_at->format('M j, Y H:i') }}</time>
+            <time datetime="{{ $billOfLading->updated_at->toIso8601String() }}">{{ $billOfLading->updated_at->locale('id')->translatedFormat('j M Y H:i') }}</time>
         </aside>
     @endif
 
@@ -70,7 +78,7 @@
             @foreach ($timelineTracks as $track)
                 <section class="track-section">
                     <div class="section-title">
-                        <p class="eyebrow">Tracking</p>
+                        <p class="eyebrow">Pelacakan</p>
                         <h2>{{ $track['title'] }}</h2>
                     </div>
 
@@ -90,11 +98,11 @@
                                     <strong>{{ $node['label'] }}</strong>
                                     <span>
                                         @if ($node['state'] === 'completed')
-                                            Completed
+                                            Selesai
                                         @elseif ($node['state'] === 'in_progress')
-                                            In progress
+                                            Sedang diproses
                                         @else
-                                            Upcoming
+                                            Mendatang
                                         @endif
                                     </span>
                                 </div>
@@ -106,24 +114,24 @@
 
             <section class="detail-section">
                 <div class="section-title">
-                    <p class="eyebrow">Cargo</p>
-                    <h2>Shipment details</h2>
+                    <p class="eyebrow">Kargo</p>
+                    <h2>Detail pengiriman</h2>
                 </div>
 
                 <dl class="facts-grid">
                     <div><dt>Carrier</dt><dd>{{ $billOfLading->carrier_name ?: '-' }}</dd></div>
                     <div>
-                        <dt>Vessel / voyage</dt>
+                        <dt>Kapal / voyage</dt>
                         <dd>{{ $billOfLading->vessel_name ?: '-' }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}</dd>
                     </div>
-                    <div><dt>Shipped on board</dt><dd>{{ $billOfLading->shipped_on_board_date?->format('M j, Y') ?: '-' }}</dd></div>
-                    <div><dt>Packages</dt><dd>{{ $billOfLading->package_count ?: ($billOfLading->quantity ?: '-') }}</dd></div>
-                    <div><dt>Gross weight</dt><dd>{{ $billOfLading->gross_weight_kg ? number_format((float) $billOfLading->gross_weight_kg, 2).' kg' : '-' }}</dd></div>
-                    <div><dt>Measurement</dt><dd>{{ $cbm ? number_format((float) $cbm, 2).' CBM' : '-' }}</dd></div>
-                    <div><dt>HS code</dt><dd>{{ $billOfLading->hs_code ?: '-' }}</dd></div>
-                    <div><dt>Input date</dt><dd>{{ $billOfLading->input_date->format('M j, Y') }}</dd></div>
+                    <div><dt>Shipped on board</dt><dd>{{ $billOfLading->shipped_on_board_date?->locale('id')->translatedFormat('j M Y') ?: '-' }}</dd></div>
+                    <div><dt>Jumlah kemasan</dt><dd>{{ $billOfLading->package_count ?: ($billOfLading->quantity ?: '-') }}</dd></div>
+                    <div><dt>Berat kotor</dt><dd>{{ $billOfLading->gross_weight_kg ? number_format((float) $billOfLading->gross_weight_kg, 2).' kg' : '-' }}</dd></div>
+                    <div><dt>Volume</dt><dd>{{ $cbm ? number_format((float) $cbm, 2).' CBM' : '-' }}</dd></div>
+                    <div><dt>Kode HS</dt><dd>{{ $billOfLading->hs_code ?: '-' }}</dd></div>
+                    <div><dt>Tanggal input</dt><dd>{{ $billOfLading->input_date->locale('id')->translatedFormat('j M Y') }}</dd></div>
                     <div class="fact-wide">
-                        <dt>Goods</dt>
+                        <dt>Barang</dt>
                         <dd>{{ $billOfLading->goods_description ?: ($billOfLading->items_description ?: $billOfLading->shipment_description) }}</dd>
                     </div>
                     @if ($billOfLading->free_time_notes)
@@ -132,38 +140,72 @@
                 </dl>
             </section>
 
+            @if ($hasRelatedParties)
+                <section class="detail-section">
+                    <div class="section-title">
+                        <p class="eyebrow">Informasi pengiriman</p>
+                        <h2>Pihak terkait</h2>
+                    </div>
+
+                    <dl class="facts-grid">
+                        <div><dt>Shipper</dt><dd>{{ $billOfLading->shipper_name ?: '-' }}</dd></div>
+                        <div><dt>Consignee</dt><dd>{{ $billOfLading->consignee_name ?: '-' }}</dd></div>
+                        <div><dt>Notify party</dt><dd>{{ $billOfLading->notify_party_name ?: '-' }}</dd></div>
+                    </dl>
+                </section>
+            @endif
+
+            @if ($hasDestinationDetails)
+                <section class="detail-section">
+                    <div class="section-title">
+                        <p class="eyebrow">Pengantaran</p>
+                        <h2>Tujuan pengiriman</h2>
+                    </div>
+
+                    <dl class="facts-grid">
+                        <div><dt>Port of discharge</dt><dd>{{ $pod }}</dd></div>
+                        <div><dt>Place of delivery</dt><dd>{{ $billOfLading->place_of_delivery ?: '-' }}</dd></div>
+                        <div><dt>Destination agent</dt><dd>{{ $billOfLading->destination_agent_name ?: '-' }}</dd></div>
+                        <div class="fact-wide">
+                            <dt>Alamat consignee</dt>
+                            <dd>{!! $billOfLading->consignee_address ? nl2br(e($billOfLading->consignee_address)) : '-' !!}</dd>
+                        </div>
+                    </dl>
+                </section>
+            @endif
+
             <section class="detail-section">
                 <div class="section-title section-title-row">
                     <div>
-                        <p class="eyebrow">Equipment</p>
-                        <h2>Containers</h2>
+                        <p class="eyebrow">Peralatan</p>
+                        <h2>Kontainer</h2>
                     </div>
                     <span>{{ $billOfLading->containers->count() }} total</span>
                 </div>
 
                 @if ($billOfLading->containers->isEmpty())
-                    <div class="empty-state"><strong>No containers recorded</strong></div>
+                    <div class="empty-state"><strong>Belum ada kontainer tercatat</strong></div>
                 @else
                     <div class="table-wrap">
                         <table class="container-table">
                             <thead>
                                 <tr>
-                                    <th>Container</th>
-                                    <th>Seal</th>
-                                    <th>Type</th>
-                                    <th>Packages</th>
-                                    <th>Weight</th>
+                                    <th>Kontainer</th>
+                                    <th>Segel</th>
+                                    <th>Jenis</th>
+                                    <th>Kemasan</th>
+                                    <th>Berat</th>
                                     <th>CBM</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($billOfLading->containers as $container)
                                     <tr>
-                                        <td data-label="Container"><strong>{{ $container->container_number }}</strong></td>
-                                        <td data-label="Seal">{{ $container->seal_number ?: '-' }}</td>
-                                        <td data-label="Type">{{ $container->container_type ?: '-' }}</td>
-                                        <td data-label="Packages">{{ $container->package_count ?: '-' }}</td>
-                                        <td data-label="Weight">{{ $container->gross_weight_kg ? number_format((float) $container->gross_weight_kg, 3).' kg' : '-' }}</td>
+                                        <td data-label="Kontainer"><strong>{{ $container->container_number }}</strong></td>
+                                        <td data-label="Segel">{{ $container->seal_number ?: '-' }}</td>
+                                        <td data-label="Jenis">{{ $container->container_type ?: '-' }}</td>
+                                        <td data-label="Kemasan">{{ $container->package_count ?: '-' }}</td>
+                                        <td data-label="Berat">{{ $container->gross_weight_kg ? number_format((float) $container->gross_weight_kg, 3).' kg' : '-' }}</td>
                                         <td data-label="CBM">{{ $container->measurement_cbm ? number_format((float) $container->measurement_cbm, 3) : '-' }}</td>
                                     </tr>
                                 @endforeach
@@ -176,17 +218,17 @@
 
         <aside class="history-section">
             <div class="section-title">
-                <p class="eyebrow">Activity</p>
-                <h2>Updates</h2>
+                <p class="eyebrow">Aktivitas</p>
+                <h2>Pembaruan</h2>
             </div>
 
             @if ($billOfLading->updates->isEmpty())
-                <div class="empty-state"><strong>No updates yet</strong></div>
+                <div class="empty-state"><strong>Belum ada pembaruan</strong></div>
             @else
                 <ol class="history-list">
                     @foreach ($billOfLading->updates->sortByDesc('created_at') as $update)
                         <li class="history-item">
-                            <time datetime="{{ $update->created_at->toIso8601String() }}">{{ $update->created_at->format('M j, Y H:i') }}</time>
+                            <time datetime="{{ $update->created_at->toIso8601String() }}">{{ $update->created_at->locale('id')->translatedFormat('j M Y H:i') }}</time>
                             <strong>{{ $update->phase }}</strong>
                             @if ($update->note)
                                 <p>{{ $update->note }}</p>

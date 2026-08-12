@@ -312,6 +312,23 @@ class BillOfLading extends Model
         return config("bl_workflows.customs_lanes.{$this->customs_lane}");
     }
 
+    public static function statusLabel(?string $status): string
+    {
+        return match ($status) {
+            self::STATUS_PENDING => 'Menunggu',
+            self::STATUS_IN_PROGRESS => 'Sedang diproses',
+            self::STATUS_ON_HOLD => 'Ditahan',
+            self::STATUS_COMPLETED => 'Selesai',
+            self::STATUS_CANCELLED => 'Dibatalkan',
+            default => (string) $status,
+        };
+    }
+
+    public function displayStatus(): string
+    {
+        return self::statusLabel($this->status);
+    }
+
     public function shipmentTypeLabel(): string
     {
         return config("bl_workflows.shipment_types.{$this->shipment_type}", ucfirst((string) $this->shipment_type));

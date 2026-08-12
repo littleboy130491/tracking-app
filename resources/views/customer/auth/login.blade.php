@@ -1,7 +1,7 @@
-<x-customer.layout title="Customer Login">
+<x-customer.layout title="Login Pelanggan">
     <section class="panel auth-panel">
-        <h1>Customer Login</h1>
-        <p class="muted">Enter your registered customer email.</p>
+        <h1>Login Pelanggan</h1>
+        <p class="muted">Masukkan email pelanggan yang terdaftar.</p>
 
         @if ($errors->has('email'))
             <div class="errors">
@@ -16,7 +16,7 @@
                 <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus>
             </div>
 
-            <button type="submit">Continue</button>
+            <button type="submit">Lanjutkan</button>
         </form>
     </section>
 </x-customer.layout>

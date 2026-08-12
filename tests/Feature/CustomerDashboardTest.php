@@ -78,13 +78,13 @@ class CustomerDashboardTest extends TestCase
             ->get(route('customer.dashboard', ['q' => 'FOUND']))
             ->assertOk()
             ->assertSee('BL-FOUND')
-            ->assertSee('BL or container')
-            ->assertSee('View tracking');
+            ->assertSee('BL atau kontainer')
+            ->assertSee('Lihat pelacakan');
 
         $this->actingAs($customer)
             ->get(route('customer.dashboard', ['q' => 'MISSING']))
             ->assertOk()
-            ->assertSee('No shipments found');
+            ->assertSee('Tidak ada pengiriman ditemukan');
     }
 
     public function test_customer_dashboard_shows_company_name_and_login_email(): void
@@ -132,7 +132,7 @@ class CustomerDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('BL-MATCH')
             ->assertDontSee('BL-OTHER')
-            ->assertSee('June')
+            ->assertSee('Juni')
             ->assertSee('2026');
     }
 
@@ -147,14 +147,14 @@ class CustomerDashboardTest extends TestCase
         $this->actingAs($customer)
             ->get(route('customer.dashboard'))
             ->assertOk()
-            ->assertSee('Showing 1–10 of 12 records')
-            ->assertSee('Page 1 of 2');
+            ->assertSee('Menampilkan 1–10 dari 12 data')
+            ->assertSee('Halaman 1 dari 2');
 
         $this->actingAs($customer)
             ->get(route('customer.dashboard', ['per_page' => 25]))
             ->assertOk()
-            ->assertSee('Showing 1–12 of 12 records')
-            ->assertDontSee('Page 1 of 2');
+            ->assertSee('Menampilkan 1–12 dari 12 data')
+            ->assertDontSee('Halaman 1 dari 2');
     }
 
     public function test_customer_with_no_bl_records_sees_empty_state(): void
@@ -164,7 +164,7 @@ class CustomerDashboardTest extends TestCase
         $this->actingAs($customer)
             ->get(route('customer.dashboard'))
             ->assertOk()
-            ->assertSee('No shipments found');
+            ->assertSee('Tidak ada pengiriman ditemukan');
     }
 
     public function test_customer_bl_detail_shows_tracking_fields_and_update_history(): void
@@ -178,6 +178,12 @@ class CustomerDashboardTest extends TestCase
             'destination' => 'Singapore Port, Singapore',
             'port_of_loading' => 'Jakarta Port, Indonesia',
             'port_of_discharge' => 'Singapore Port, Singapore',
+            'place_of_delivery' => 'Jurong Logistics Hub',
+            'shipper_name' => 'PT Example Shipper',
+            'consignee_name' => 'Example Singapore Pte Ltd',
+            'consignee_address' => "10 Jurong Pier Road\nSingapore 619162",
+            'notify_party_name' => 'Example Notify Party',
+            'destination_agent_name' => 'Example Destination Agent',
             'items_description' => 'CNC machinery parts, 12 crates',
             'goods_description' => 'CNC machinery parts, 12 crates',
             'quantity' => '12 crates',
@@ -204,16 +210,24 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('BL-DETAIL-001')
             ->assertSee('Machinery shipment to Singapore')
             ->assertSee('Singapore Port, Singapore')
+            ->assertSee('Pihak terkait')
+            ->assertSee('PT Example Shipper')
+            ->assertSee('Example Singapore Pte Ltd')
+            ->assertSee('Example Notify Party')
+            ->assertSee('Tujuan pengiriman')
+            ->assertSee('Jurong Logistics Hub')
+            ->assertSee('10 Jurong Pier Road')
+            ->assertSee('Example Destination Agent')
             ->assertSee('CNC machinery parts, 12 crates')
             ->assertSee('3,200.50 kg')
             ->assertSee('14.20 CBM')
-            ->assertSee('In Progress')
+            ->assertSee('Sedang diproses')
             ->assertSee('Currently in transit.')
-            ->assertSee('Updates')
+            ->assertSee('Pembaruan')
             ->assertSee('Initial history entry.')
-            ->assertSee('Import process')
-            ->assertSee('Containers')
-            ->assertSee('Current step');
+            ->assertSee('Proses impor')
+            ->assertSee('Kontainer')
+            ->assertSee('Langkah saat ini');
     }
 
     public function test_customer_pages_include_mobile_viewport_layout(): void

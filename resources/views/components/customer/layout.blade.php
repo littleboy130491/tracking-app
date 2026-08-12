@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="id">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? 'Customer BL Tracking' }}</title>
+    <title>{{ $title ?? 'Pelacakan BL Pelanggan' }}</title>
     <link rel="stylesheet" href="{{ asset('css/customer.css') }}">
 </head>
 <body>
@@ -14,7 +14,7 @@
             @auth
                 <form method="POST" action="{{ route('customer.logout') }}">
                     @csrf
-                    <button class="logout" type="submit">Log out</button>
+                    <button class="logout" type="submit">Keluar</button>
                 </form>
             @endauth
         </div>

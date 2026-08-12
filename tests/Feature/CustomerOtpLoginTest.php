@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Mail\CustomerOtpMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class CustomerOtpLoginTest extends TestCase
@@ -34,6 +36,38 @@ class CustomerOtpLoginTest extends TestCase
         $this->assertNotNull($customer->fresh()->last_login_at);
     }
 
+    public function test_otp_email_is_sent_when_enabled_and_not_shown_on_page(): void
+    {
+        config([
+            'customer_auth.display_otp' => false,
+            'customer_auth.send_email' => true,
+        ]);
+
+        Mail::fake();
+
+        $customer = User::factory()->customer()->create([
+            'email' => 'customer@example.com',
+        ]);
+
+        $this->post(route('customer.otp.request'), [
+            'email' => $customer->email,
+        ])->assertRedirectToRoute('customer.otp.show');
+
+        $this->assertNull(session('customer_otp_demo_code'));
+        $this->assertNotNull(session('customer_otp.hash'));
+
+        Mail::assertSent(CustomerOtpMail::class, function (CustomerOtpMail $mail) use ($customer) {
+            return $mail->hasTo($customer->email)
+                && $mail->envelope()->subject === 'Kode verifikasi BL Tracking Anda'
+                && preg_match('/^\d{6}$/', $mail->otp) === 1;
+        });
+
+        $this->get(route('customer.otp.show'))
+            ->assertOk()
+            ->assertSee('Kami telah mengirim kode 6 digit ke '.$customer->email)
+            ->assertDontSee('Kode verifikasi demo');
+    }
+
     public function test_wrong_otp_is_rejected(): void
     {
         $customer = User::factory()->customer()->create([
@@ -48,7 +82,7 @@ class CustomerOtpLoginTest extends TestCase
             'otp' => '000000',
         ])
             ->assertSessionHasErrors([
-                'otp' => 'The OTP is wrong. Please check the code and try again.',
+                'otp' => 'OTP salah. Periksa kode dan coba lagi.',
             ]);
 
         $this->assertGuest();
@@ -59,7 +93,7 @@ class CustomerOtpLoginTest extends TestCase
         $this->post(route('customer.otp.request'), [
             'email' => 'missing@example.com',
         ])->assertSessionHasErrors([
-            'email' => 'We could not send a code to this address. Contact your administrator.',
+            'email' => 'Kami tidak dapat mengirim kode ke alamat ini. Hubungi administrator Anda.',
         ]);
     }
 
@@ -72,7 +106,7 @@ class CustomerOtpLoginTest extends TestCase
         $this->post(route('customer.otp.request'), [
             'email' => $admin->email,
         ])->assertSessionHasErrors([
-            'email' => 'We could not send a code to this address. Contact your administrator.',
+            'email' => 'Kami tidak dapat mengirim kode ke alamat ini. Hubungi administrator Anda.',
         ]);
     }
 

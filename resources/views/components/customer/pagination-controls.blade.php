@@ -23,35 +23,35 @@
             @endif
         @endforeach
 
-        <label for="per_page">Show</label>
+        <label for="per_page">Tampilkan</label>
         <select id="per_page" name="per_page" onchange="this.form.submit()">
             @foreach ($perPageOptions as $option)
                 <option value="{{ $option }}" @selected((int) $filters['per_page'] === $option)>{{ $option }}</option>
             @endforeach
         </select>
-        <span>per page</span>
+        <span>per halaman</span>
     </form>
 
     @if ($paginator->total() > 0)
         <p class="pagination-summary">
-            Showing {{ $paginator->firstItem() }}–{{ $paginator->lastItem() }} of {{ $paginator->total() }} records
+            Menampilkan {{ $paginator->firstItem() }}–{{ $paginator->lastItem() }} dari {{ $paginator->total() }} data
         </p>
     @endif
 
     @if ($paginator->hasPages())
-        <nav class="pagination-links" aria-label="BL records pagination">
+        <nav class="pagination-links" aria-label="Navigasi halaman BL">
             @if ($paginator->onFirstPage())
-                <span class="pagination-link disabled">Previous</span>
+                <span class="pagination-link disabled">Sebelumnya</span>
             @else
-                <a class="pagination-link" href="{{ $paginator->previousPageUrl() }}">Previous</a>
+                <a class="pagination-link" href="{{ $paginator->previousPageUrl() }}">Sebelumnya</a>
             @endif
 
-            <span class="pagination-status">Page {{ $paginator->currentPage() }} of {{ $paginator->lastPage() }}</span>
+            <span class="pagination-status">Halaman {{ $paginator->currentPage() }} dari {{ $paginator->lastPage() }}</span>
 
             @if ($paginator->hasMorePages())
-                <a class="pagination-link" href="{{ $paginator->nextPageUrl() }}">Next</a>
+                <a class="pagination-link" href="{{ $paginator->nextPageUrl() }}">Berikutnya</a>
             @else
-                <span class="pagination-link disabled">Next</span>
+                <span class="pagination-link disabled">Berikutnya</span>
             @endif
         </nav>
     @endif

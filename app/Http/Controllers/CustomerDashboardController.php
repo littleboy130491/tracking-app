@@ -92,8 +92,21 @@ class CustomerDashboardController extends Controller
             'billOfLadings' => $billOfLadings,
             'customer' => $customer,
             'filters' => $filters,
-            'availableMonths' => collect(range(1, 12))->mapWithKeys(fn (int $month): array => [
-                (string) $month => now()->startOfYear()->month($month)->format('F'),
+            'availableMonths' => collect([
+                1 => 'Januari',
+                2 => 'Februari',
+                3 => 'Maret',
+                4 => 'April',
+                5 => 'Mei',
+                6 => 'Juni',
+                7 => 'Juli',
+                8 => 'Agustus',
+                9 => 'September',
+                10 => 'Oktober',
+                11 => 'November',
+                12 => 'Desember',
+            ])->mapWithKeys(fn (string $label, int $month): array => [
+                (string) $month => $label,
             ]),
             'availableYears' => $availableYears,
             'perPageOptions' => self::PER_PAGE_OPTIONS,
@@ -157,15 +170,15 @@ class CustomerDashboardController extends Controller
         return collect([
             [
                 'title' => $billOfLading->shipment_type === BillOfLading::TYPE_EXPORT
-                    ? 'Export process'
-                    : 'Import process',
+                    ? 'Proses ekspor'
+                    : 'Proses impor',
                 'nodes' => $processMilestones->map(fn ($milestone): array => [
                     'label' => $milestone->displayLabel(true),
                     'state' => $milestone->state,
                 ]),
             ],
             [
-                'title' => 'Delivery process',
+                'title' => 'Proses delivery',
                 'nodes' => $deliveryMilestones->map(fn ($milestone): array => [
                     'label' => $milestone->displayLabel(true),
                     'state' => $milestone->state,

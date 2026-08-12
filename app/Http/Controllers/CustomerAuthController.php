@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\CustomerOtpMail;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +30,7 @@ class CustomerAuthController extends Controller
 
         if (! $user || ! $user->is_active || ! $user->hasRole(User::ROLE_CUSTOMER)) {
             return back()
-                ->withErrors(['email' => 'We could not send a code to this address. Contact your administrator.'])
+                ->withErrors(['email' => 'Kami tidak dapat mengirim kode ke alamat ini. Hubungi administrator Anda.'])
                 ->onlyInput('email');
         }
 
@@ -47,10 +48,10 @@ class CustomerAuthController extends Controller
         }
 
         if (config('customer_auth.send_email')) {
-            Mail::raw(
-                "Your BL Tracking verification code is {$otp}. It expires in ".config('customer_auth.otp_expires_minutes', 10).' minutes.',
-                fn ($message) => $message->to($user->email)->subject('Your BL Tracking verification code'),
-            );
+            Mail::to($user->email)->send(new CustomerOtpMail(
+                otp: $otp,
+                expiresMinutes: (int) config('customer_auth.otp_expires_minutes', 10),
+            ));
         }
 
         return redirect()->route('customer.otp.show');
@@ -67,6 +68,7 @@ class CustomerAuthController extends Controller
                 ? $request->session()->get('customer_otp_demo_code')
                 : null,
             'email' => $request->session()->get('customer_otp.email'),
+            'emailSent' => (bool) config('customer_auth.send_email'),
         ]);
     }
 
@@ -83,7 +85,7 @@ class CustomerAuthController extends Controller
 
             return redirect()
                 ->route('customer.login')
-                ->withErrors(['email' => 'The OTP has expired. Request a new code.']);
+                ->withErrors(['email' => 'OTP telah kedaluwarsa. Minta kode baru.']);
         }
 
         if (! Hash::check($validated['otp'], $otp['hash'])) {
@@ -95,10 +97,10 @@ class CustomerAuthController extends Controller
 
                 return redirect()
                     ->route('customer.login')
-                    ->withErrors(['email' => 'Too many incorrect attempts. Request a new code.']);
+                    ->withErrors(['email' => 'Terlalu banyak percobaan salah. Minta kode baru.']);
             }
 
-            return back()->withErrors(['otp' => 'The OTP is wrong. Please check the code and try again.']);
+            return back()->withErrors(['otp' => 'OTP salah. Periksa kode dan coba lagi.']);
         }
 
         $user = User::query()
@@ -110,7 +112,7 @@ class CustomerAuthController extends Controller
 
             return redirect()
                 ->route('customer.login')
-                ->withErrors(['email' => 'Enter a registered customer email address.']);
+                ->withErrors(['email' => 'Masukkan email pelanggan yang terdaftar.']);
         }
 
         Auth::login($user);
