@@ -219,7 +219,7 @@ h3 {
 
 .shipment-filters {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.45fr) minmax(150px, 0.4fr) 120px auto auto;
+    grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(125px, 0.4fr)) auto auto;
     gap: 10px;
     align-items: end;
 }
@@ -926,7 +926,7 @@ select:focus {
 
 @media (max-width: 1040px) {
     .shipment-filters {
-        grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(130px, 0.45fr)) auto;
+        grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(120px, 0.45fr)) auto;
     }
 
     .shipment-filters .text-action {

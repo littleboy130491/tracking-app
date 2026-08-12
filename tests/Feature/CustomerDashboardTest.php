@@ -101,7 +101,7 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('customer@example.com');
     }
 
-    public function test_customer_can_filter_dashboard_by_status_type_and_year(): void
+    public function test_customer_can_filter_dashboard_by_status_type_month_and_year(): void
     {
         $customer = User::factory()->customer()->create();
 
@@ -118,7 +118,7 @@ class CustomerDashboardTest extends TestCase
             'customer_id' => $customer->id,
             'bl_number' => 'BL-OTHER',
             'shipment_type' => BillOfLading::TYPE_EXPORT,
-            'input_date' => '2025-01-10',
+            'input_date' => '2026-01-10',
         ]);
         $other->forceFill(['current_milestone_key' => 'receive_docs'])->saveQuietly();
 
@@ -126,11 +126,14 @@ class CustomerDashboardTest extends TestCase
             ->get(route('customer.dashboard', [
                 'status' => 'In Progress',
                 'shipment_type' => BillOfLading::TYPE_IMPORT,
+                'month' => '6',
                 'year' => '2026',
             ]))
             ->assertOk()
             ->assertSee('BL-MATCH')
-            ->assertDontSee('BL-OTHER');
+            ->assertDontSee('BL-OTHER')
+            ->assertSee('June')
+            ->assertSee('2026');
     }
 
     public function test_customer_dashboard_paginates_results_and_supports_per_page_selection(): void

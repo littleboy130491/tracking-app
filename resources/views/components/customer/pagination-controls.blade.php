@@ -9,6 +9,7 @@
         'q' => $filters['q'] ?: null,
         'status' => $filters['status'] ?: null,
         'shipment_type' => $filters['shipment_type'] ?: null,
+        'month' => $filters['month'] ?: null,
         'year' => $filters['year'] ?: null,
         'per_page' => $filters['per_page'] ?: null,
     ]);

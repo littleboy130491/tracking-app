@@ -59,6 +59,16 @@
                 </select>
             </div>
 
+            <div class="compact-field">
+                <label for="month">Month</label>
+                <select id="month" name="month">
+                    <option value="">All months</option>
+                    @foreach ($availableMonths as $month => $label)
+                        <option value="{{ $month }}" @selected($filters['month'] === (string) $month)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             <div class="compact-field year-field">
                 <label for="year">Year</label>
                 <select id="year" name="year">

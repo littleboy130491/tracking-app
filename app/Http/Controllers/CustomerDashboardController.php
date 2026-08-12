@@ -30,6 +30,7 @@ class CustomerDashboardController extends Controller
             'q' => trim((string) $request->query('q')),
             'status' => (string) $request->query('status', ''),
             'shipment_type' => (string) $request->query('shipment_type', ''),
+            'month' => (string) $request->query('month', ''),
             'year' => (string) $request->query('year', ''),
             'per_page' => (string) $perPage,
         ];
@@ -52,6 +53,13 @@ class CustomerDashboardController extends Controller
                 $filters['shipment_type'] !== ''
                     && array_key_exists($filters['shipment_type'], config('bl_workflows.shipment_types', [])),
                 fn ($query) => $query->where('shipment_type', $filters['shipment_type']),
+            )
+            ->when(
+                $filters['month'] !== ''
+                    && ctype_digit($filters['month'])
+                    && (int) $filters['month'] >= 1
+                    && (int) $filters['month'] <= 12,
+                fn ($query) => $query->whereMonth('input_date', (int) $filters['month']),
             )
             ->when(
                 $filters['year'] !== '' && ctype_digit($filters['year']),
@@ -84,6 +92,9 @@ class CustomerDashboardController extends Controller
             'billOfLadings' => $billOfLadings,
             'customer' => $customer,
             'filters' => $filters,
+            'availableMonths' => collect(range(1, 12))->mapWithKeys(fn (int $month): array => [
+                (string) $month => now()->startOfYear()->month($month)->format('F'),
+            ]),
             'availableYears' => $availableYears,
             'perPageOptions' => self::PER_PAGE_OPTIONS,
             'statusCounts' => $statusCounts,
@@ -91,6 +102,7 @@ class CustomerDashboardController extends Controller
             'hasBlSearch' => $filters['q'] !== '',
             'hasListingFilters' => $filters['status'] !== ''
                 || $filters['shipment_type'] !== ''
+                || $filters['month'] !== ''
                 || $filters['year'] !== '',
         ]);
     }
