@@ -97,10 +97,8 @@ class DemoDataSeeder extends Seeder
             'address' => 'Komp. Jakarta Distribution Centre, Jl. Kapuk Kamal Raya No. 40 Blok B Kav. No. 03, Jakarta Utara 14470',
         ]);
         $dolpin = User::factory()->create([
-            'name' => 'PT Dolpin Putra Sejati',
+            'name' => 'Ops PIC Dolpin',
             'email' => 'customer-a@example.com',
-            'company_name' => $dolpinCompany->name,
-            'company_address' => $dolpinCompany->address,
             'pic_name' => 'Ops PIC Dolpin',
             'pic_phone' => '+62 21 22057980',
             'last_login_at' => now()->subDays(1),
@@ -113,10 +111,8 @@ class DemoDataSeeder extends Seeder
             'address' => 'Jl. Asia Afrika No. 25, Bandung 40111',
         ]);
         $beta = User::factory()->create([
-            'name' => 'Beta Trading',
+            'name' => 'Budi Santoso',
             'email' => 'customer-b@example.com',
-            'company_name' => $betaCompany->name,
-            'company_address' => $betaCompany->address,
             'pic_name' => 'Budi Santoso',
             'pic_phone' => '+62 813 9876 5432',
             'last_login_at' => now()->subDays(5),

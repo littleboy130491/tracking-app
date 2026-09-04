@@ -84,10 +84,12 @@ class CustomerDashboardTest extends TestCase
 
     public function test_customer_dashboard_shows_company_name_and_login_email(): void
     {
-        $customer = User::factory()->customer()->create([
-            'company_name' => 'Acme Logistics',
-            'email' => 'customer@example.com',
-        ]);
+        $customer = User::factory()
+            ->customer()
+            ->withCompany(['name' => 'Acme Logistics'])
+            ->create([
+                'email' => 'customer@example.com',
+            ]);
 
         $this->actingAs($customer)
             ->get(route('customer.dashboard'))

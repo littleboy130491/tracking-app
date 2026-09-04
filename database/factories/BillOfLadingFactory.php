@@ -59,10 +59,7 @@ class BillOfLadingFactory extends Factory
             $company = $user->companies()->first();
 
             if (! $company) {
-                $company = Company::factory()->create([
-                    'name' => $user->company_name ?: fake()->unique()->company(),
-                    'address' => $user->company_address,
-                ]);
+                $company = Company::factory()->create();
                 $user->companies()->attach($company);
             }
 

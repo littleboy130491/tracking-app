@@ -28,7 +28,6 @@ class DemoSeederTest extends TestCase
         $customerA = User::query()->where('email', 'customer-a@example.com')->firstOrFail();
         $customerB = User::query()->where('email', 'customer-b@example.com')->firstOrFail();
 
-        $this->assertSame('PT Dolpin Putra Sejati', $customerA->company_name);
         $this->assertTrue($customerA->companies()->where('name', 'PT Dolpin Putra Sejati')->exists());
         $this->assertTrue($customerB->companies()->where('name', 'Beta Trading')->exists());
         $this->assertSame(15, $customerA->accessibleBillOfLadings()->count()); // 6 client + 9 volume

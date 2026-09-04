@@ -12,11 +12,9 @@ trait SyncsCustomerDisplayName
      */
     protected function prepareCustomerData(array $data): array
     {
-        $data['name'] = filled($data['company_name'] ?? null)
-            ? $data['company_name']
-            : (filled($data['pic_name'] ?? null)
-                ? $data['pic_name']
-                : Str::before($data['email'], '@'));
+        $data['name'] = filled($data['pic_name'] ?? null)
+            ? $data['pic_name']
+            : Str::before($data['email'], '@');
 
         return $data;
     }

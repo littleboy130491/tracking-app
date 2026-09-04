@@ -20,8 +20,6 @@ use Spatie\Permission\Traits\HasRoles;
     'name',
     'email',
     'password',
-    'company_name',
-    'company_address',
     'pic_name',
     'pic_phone',
     'last_login_at',

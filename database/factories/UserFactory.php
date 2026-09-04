@@ -32,8 +32,6 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'company_name' => null,
-            'company_address' => null,
             'pic_name' => null,
             'pic_phone' => null,
             'last_login_at' => null,
@@ -70,25 +68,12 @@ class UserFactory extends Factory
 
     public function customer(): static
     {
-        return $this->withRole(User::ROLE_CUSTOMER)->state(function (array $attributes): array {
-            $companyName = $attributes['company_name'] ?? fake()->company();
-
-            return [
-                'company_name' => $companyName,
-                'name' => $attributes['name'] ?? $companyName,
-            ];
-        })->afterCreating(function (User $user): void {
+        return $this->withRole(User::ROLE_CUSTOMER)->afterCreating(function (User $user): void {
             if ($user->companies()->exists()) {
                 return;
             }
 
-            $companyName = $user->company_name ?: fake()->unique()->company();
-            $company = Company::query()->firstOrCreate(
-                ['name' => $companyName],
-                ['address' => $user->company_address],
-            );
-
-            $user->companies()->attach($company);
+            $user->companies()->attach(Company::factory()->create());
         });
     }
 
@@ -102,7 +87,7 @@ class UserFactory extends Factory
                 ? $company
                 : Company::factory()->create($company);
 
-            $user->companies()->syncWithoutDetaching([$model->id]);
+            $user->companies()->sync([$model->id]);
         });
     }
 }

@@ -43,10 +43,13 @@ class CompanyUserRelationshipTest extends TestCase
 
     public function test_customer_factory_attaches_a_company_from_the_profile_name(): void
     {
-        $customer = User::factory()->customer()->create([
-            'company_name' => 'Acme Logistics',
-            'company_address' => '123 Harbour Road',
-        ]);
+        $customer = User::factory()
+            ->customer()
+            ->withCompany([
+                'name' => 'Acme Logistics',
+                'address' => '123 Harbour Road',
+            ])
+            ->create();
 
         $this->assertTrue($customer->companies()->where('name', 'Acme Logistics')->exists());
         $this->assertSame('123 Harbour Road', $customer->companies()->first()?->address);

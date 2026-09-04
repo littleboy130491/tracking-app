@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -22,13 +23,23 @@ class UserForm
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
-                        TextInput::make('company_name')
-                            ->label('Company Name')
-                            ->maxLength(255),
-                        Textarea::make('company_address')
-                            ->label('Company Address')
-                            ->rows(3)
-                            ->columnSpanFull(),
+                        Select::make('companies')
+                            ->label('Companies')
+                            ->relationship('companies', 'name')
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->createOptionForm([
+                                TextInput::make('name')
+                                    ->label('Company Name')
+                                    ->required()
+                                    ->unique('companies', 'name')
+                                    ->maxLength(255),
+                                Textarea::make('address')
+                                    ->label('Company Address')
+                                    ->rows(3),
+                            ]),
                         TextInput::make('pic_name')
                             ->label('PIC Name')
                             ->maxLength(255),
