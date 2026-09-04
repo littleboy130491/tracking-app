@@ -36,10 +36,10 @@ class DemoDataSeeder extends Seeder
         $this->seedRoles();
 
         $admin = $this->seedAdmin();
-        $customers = $this->seedCustomers();
+        $demo = $this->seedCustomers();
         $photos = $this->seedDocumentationPhotos();
-        $this->seedClientBillOfLadings($admin, $customers['dolpin'], $photos);
-        $this->seedVolumeBillOfLadings($admin, $customers, $photos);
+        $this->seedClientBillOfLadings($admin, $demo['companies'], $photos);
+        $this->seedVolumeBillOfLadings($admin, $demo['companies'], $photos);
         $this->seedShieldPermissions();
     }
 
@@ -100,7 +100,9 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * @return array{dolpin: User, beta: User}
+     * @return array{
+     *     companies: array{dolpin: Company, nusantara: Company, beta: Company, mitra: Company}
+     * }
      */
     private function seedCustomers(): array
     {
@@ -108,34 +110,77 @@ class DemoDataSeeder extends Seeder
             'name' => 'PT Dolpin Putra Sejati',
             'address' => 'Komp. Jakarta Distribution Centre, Jl. Kapuk Kamal Raya No. 40 Blok B Kav. No. 03, Jakarta Utara 14470',
         ]);
-        $dolpin = User::factory()->create([
-            'name' => 'Ops PIC Dolpin',
-            'email' => 'customer-a@example.com',
-            'pic_name' => 'Ops PIC Dolpin',
-            'pic_phone' => '+62 21 22057980',
-            'last_login_at' => now()->subDays(1),
+        $nusantaraCompany = Company::query()->create([
+            'name' => 'PT Nusantara Forwarding',
+            'address' => 'Jl. Raya Cakung Cilincing No. 88, Jakarta Utara 14140',
         ]);
-        $dolpin->assignRole(User::ROLE_CUSTOMER);
-        $dolpin->companies()->attach($dolpinCompany);
-
         $betaCompany = Company::query()->create([
             'name' => 'Beta Trading',
             'address' => 'Jl. Asia Afrika No. 25, Bandung 40111',
         ]);
-        $beta = User::factory()->create([
-            'name' => 'Budi Santoso',
-            'email' => 'customer-b@example.com',
-            'pic_name' => 'Budi Santoso',
-            'pic_phone' => '+62 813 9876 5432',
-            'last_login_at' => now()->subDays(5),
+        $mitraCompany = Company::query()->create([
+            'name' => 'PT Samudera Mitra',
+            'address' => 'Jl. Yos Sudarso Kav. 89, Jakarta Utara 14350',
         ]);
-        $beta->assignRole(User::ROLE_CUSTOMER);
-        $beta->companies()->attach($betaCompany);
+
+        // One login manages three companies; Dolpin and Mitra are also shared with other PICs.
+        $this->seedCustomerUser(
+            'Ops PIC Dolpin',
+            'customer-a@example.com',
+            '+62 21 22057980',
+            now()->subDays(1),
+            [$dolpinCompany, $nusantaraCompany, $mitraCompany],
+        );
+        $this->seedCustomerUser(
+            'Rina Hartono',
+            'customer-c@example.com',
+            '+62 21 22057981',
+            now()->subDays(2),
+            [$dolpinCompany],
+        );
+
+        // Beta has two PICs; Budi also manages the shared Mitra company.
+        $this->seedCustomerUser(
+            'Budi Santoso',
+            'customer-b@example.com',
+            '+62 813 9876 5432',
+            now()->subDays(5),
+            [$betaCompany, $mitraCompany],
+        );
+        $this->seedCustomerUser(
+            'Sari Wijaya',
+            'customer-d@example.com',
+            '+62 812 4455 7788',
+            now()->subDays(8),
+            [$betaCompany],
+        );
 
         return [
-            'dolpin' => $dolpin,
-            'beta' => $beta,
+            'companies' => [
+                'dolpin' => $dolpinCompany,
+                'nusantara' => $nusantaraCompany,
+                'beta' => $betaCompany,
+                'mitra' => $mitraCompany,
+            ],
         ];
+    }
+
+    /**
+     * @param  list<Company>  $companies
+     */
+    private function seedCustomerUser(string $name, string $email, string $phone, mixed $lastLoginAt, array $companies): User
+    {
+        $user = User::factory()->create([
+            'name' => $name,
+            'email' => $email,
+            'pic_name' => $name,
+            'pic_phone' => $phone,
+            'last_login_at' => $lastLoginAt,
+        ]);
+        $user->assignRole(User::ROLE_CUSTOMER);
+        $user->companies()->attach(collect($companies)->pluck('id'));
+
+        return $user;
     }
 
     /**
@@ -248,12 +293,13 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
+     * @param  array{dolpin: Company, nusantara: Company, beta: Company, mitra: Company}  $companies
      * @param  array{door: Media, floor: Media, eir: Media, seal: Media}  $photos
      */
-    private function seedClientBillOfLadings(User $admin, User $dolpin, array $photos): void
+    private function seedClientBillOfLadings(User $admin, array $companies, array $photos): void
     {
         $workflow = app(BillOfLadingWorkflowService::class);
-        $companyId = $dolpin->companies()->first()->id;
+        $companyId = $companies['dolpin']->id;
         $consigneeAddress = 'Komp. Jakarta Distribution Centre, Jl. Kapuk Kamal Raya No. 40 Blok B Kav. No. 03, Kel. Kamal Muara, Kec. Penjaringan, Jakarta Utara 14470';
 
         // 1) KMTC — Green lane / SPPB, delivery completed
@@ -547,7 +593,7 @@ class DemoDataSeeder extends Seeder
             'do_number' => 'DO-EXP-2026-001',
             'depot_closing_at' => '2026-06-03 16:00:00',
             'cy_closing_at' => '2026-06-04 18:00:00',
-            'container_size' => "1x20'GP",
+            'container_size' => "3x20'GP",
             'pickup_depot' => 'KOJA CONTAINER DEPOT',
             'stuffing_date' => '2026-06-05',
             'stuffing_destination' => 'Pabrik Cikarang',
@@ -563,13 +609,13 @@ class DemoDataSeeder extends Seeder
             'voyage_number' => '001E',
             'goods_description' => 'Export polymer samples for demo',
             'hs_code' => '3901.10',
-            'package_count' => '200 BAGS',
-            'gross_weight_kg' => 5200,
-            'measurement_cbm' => 18.5,
+            'package_count' => '600 BAGS',
+            'gross_weight_kg' => 15600,
+            'measurement_cbm' => 55.5,
             'input_date' => '2026-06-01',
             'status' => BillOfLading::STATUS_PENDING,
             'phase' => 'Input',
-            'customer_note' => 'Empty pickup documented; stuffing still ON-PROCESS.',
+            'customer_note' => 'Three containers on this BL; stuffing still mixed ON-PROCESS / FINISHED.',
         ], [
             [
                 'container_number' => 'EXPU1234567',
@@ -591,9 +637,141 @@ class DemoDataSeeder extends Seeder
                 'final_checked' => false,
                 'sort_order' => 1,
             ],
+            [
+                'container_number' => 'EXPU1234568',
+                'seal_number' => 'EXPSEAL002',
+                'container_type' => "20'GP",
+                'package_count' => '200 BAGS',
+                'gross_weight_kg' => 5200,
+                'measurement_cbm' => 18.5,
+                'driver_name' => 'Budi Hartono',
+                'license_number' => 'B 5678 EXP',
+                'driver_tracking_url' => 'https://maps.google.com/?q=Tanjung+Priok',
+                'photo_door_id' => $photos['door']->id,
+                'photo_floor_id' => $photos['floor']->id,
+                'photo_eir_id' => $photos['eir']->id,
+                'photo_seal_id' => $photos['seal']->id,
+                'stuffing_progress' => Container::STUFFING_FINISHED,
+                'gate_in_pol' => 'TANJUNG PRIOK',
+                'gate_in_cy_at' => '2026-06-06 14:20:00',
+                'vgm_kg' => 5480,
+                'final_checked' => true,
+                'final_checked_at' => '2026-06-06',
+                'sort_order' => 2,
+            ],
+            [
+                'container_number' => 'EXPU1234569',
+                'seal_number' => 'EXPSEAL003',
+                'container_type' => "20'GP",
+                'package_count' => '200 BAGS',
+                'gross_weight_kg' => 5200,
+                'measurement_cbm' => 18.5,
+                'driver_name' => 'Cahyo Nugroho',
+                'license_number' => 'B 9012 EXP',
+                'stuffing_progress' => Container::STUFFING_ON_PROCESS,
+                'vgm_kg' => 5410,
+                'final_checked' => false,
+                'sort_order' => 3,
+            ],
         ], $admin);
 
         $workflow->advanceToMilestone($export->fresh(), 'export_card', $admin->id);
+
+        // Extra companies: Nusantara is only on customer-a; Mitra is shared by customer-a and customer-b.
+        $this->createBl([
+            'company_id' => $companies['nusantara']->id,
+            'bl_number' => 'NUS-JKT-2026-001',
+            'aju_number' => '00005002111120260301',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
+            'carrier_name' => 'Nusantara Line',
+            'shipment_description' => 'LCL spare parts import for PT Nusantara Forwarding',
+            'shipper_name' => 'OSAKA PARTS CO., LTD.',
+            'consignee_name' => 'PT NUSANTARA FORWARDING',
+            'consignee_address' => $companies['nusantara']->address,
+            'port_of_loading' => 'OSAKA, JAPAN',
+            'port_of_discharge' => 'TANJUNG PRIOK',
+            'vessel_name' => 'NUSANTARA STAR',
+            'voyage_number' => '026E',
+            'goods_description' => 'Automotive spare parts, 18 crates',
+            'package_count' => '18 CRATES',
+            'gross_weight_kg' => 2400,
+            'measurement_cbm' => 12.5,
+            'input_date' => '2026-03-01',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+            'phase' => 'Input',
+            'customer_note' => 'Nusantara-only BL so customer-a can filter a second company.',
+            ...$this->importTracking([
+                'importer_name' => 'PT NUSANTARA FORWARDING',
+                'customer_confirmed' => false,
+                'pib_sent_to_customs' => false,
+                'billing_issued' => false,
+                'thc_paid' => false,
+                'do_released' => false,
+                'billing_paid' => false,
+                'departure_date' => '2026-03-01',
+                'eta_at' => '2026-03-12 09:00:00',
+                'customs_response' => null,
+                'shipping_schedule' => 'NUSANTARA STAR 026E Osaka–Priok',
+                'terminal_name' => 'JICT 2',
+            ]),
+        ], [
+            ['container_number' => 'NUSU5550001', 'seal_number' => 'NUSSEAL01', 'container_type' => "20'GP", 'package_count' => '10 CRATES', 'gross_weight_kg' => 1400, 'measurement_cbm' => 7.2, 'sort_order' => 1],
+            ['container_number' => 'NUSU5550002', 'seal_number' => 'NUSSEAL02', 'container_type' => "20'GP", 'package_count' => '8 CRATES', 'gross_weight_kg' => 1000, 'measurement_cbm' => 5.3, 'sort_order' => 2],
+        ], $admin);
+
+        $this->createBl([
+            'company_id' => $companies['mitra']->id,
+            'bl_number' => 'MITRA-SIN-2026-001',
+            'aju_number' => '00005002222220260415',
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
+            'carrier_name' => 'Mitra Ocean Line',
+            'shipment_description' => 'Shared-company FCL visible to Dolpin and Beta PICs',
+            'shipper_name' => 'SINGAPORE TRADING PTE LTD',
+            'consignee_name' => 'PT SAMUDERA MITRA',
+            'consignee_address' => $companies['mitra']->address,
+            'port_of_loading' => 'SINGAPORE',
+            'port_of_discharge' => 'TANJUNG PRIOK',
+            'vessel_name' => 'MITRA WAVE',
+            'voyage_number' => '014S',
+            'goods_description' => 'Packaging resin, 800 bags',
+            'package_count' => '800 BAGS',
+            'gross_weight_kg' => 20100,
+            'measurement_cbm' => 32,
+            'input_date' => '2026-04-15',
+            'status' => BillOfLading::STATUS_IN_PROGRESS,
+            'phase' => 'Input',
+            'customer_note' => 'Shared Mitra BL: customer-a and customer-b both see this.',
+            ...$this->importTracking([
+                'importer_name' => 'PT SAMUDERA MITRA',
+                'departure_date' => '2026-04-15',
+                'eta_at' => '2026-04-18 16:00:00',
+                'do_release_date' => '2026-04-20',
+                'customs_response' => BillOfLading::CUSTOMS_RESPONSE_SPPB,
+                'shipping_schedule' => 'MITRA WAVE 014S Singapore–Priok',
+                'terminal_name' => 'KOJA TPK',
+            ]),
+        ], [
+            $this->withImportDelivery(
+                ['container_number' => 'MTRU5550001', 'seal_number' => 'MTRSEAL01', 'container_type' => "40'HC", 'package_count' => '400 BAGS', 'gross_weight_kg' => 10050, 'measurement_cbm' => 16, 'sort_order' => 1],
+                '2026-04-21 08:00:00',
+                '2026-04-24',
+                Container::FACTORY_LOADING_ON_PROCESS,
+            ),
+            $this->withImportDelivery(
+                ['container_number' => 'MTRU5550002', 'seal_number' => 'MTRSEAL02', 'container_type' => "40'HC", 'package_count' => '400 BAGS', 'gross_weight_kg' => 10050, 'measurement_cbm' => 16, 'sort_order' => 2],
+                '2026-04-21 09:30:00',
+                '2026-04-24',
+                Container::FACTORY_LOADING_ON_PROCESS,
+            ),
+            $this->withImportDelivery(
+                ['container_number' => 'MTRU5550003', 'seal_number' => 'MTRSEAL03', 'container_type' => "20'GP", 'package_count' => '200 BAGS', 'gross_weight_kg' => 5025, 'measurement_cbm' => 8, 'sort_order' => 3],
+                '2026-04-21 11:00:00',
+                '2026-04-25',
+                Container::FACTORY_LOADING_FINAL,
+            ),
+        ], $admin);
     }
 
     /**
@@ -638,21 +816,27 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * @param  array{dolpin: User, beta: User}  $customers
+     * @param  array{dolpin: Company, nusantara: Company, beta: Company, mitra: Company}  $companies
      * @param  array{door: Media, floor: Media, eir: Media, seal: Media}  $photos
      */
-    private function seedVolumeBillOfLadings(User $admin, array $customers, array $photos): void
+    private function seedVolumeBillOfLadings(User $admin, array $companies, array $photos): void
     {
         $total = $this->volumeRecordCount();
-        $perCustomer = intdiv($total, 2);
+        $shares = $this->volumeShares($total);
         $origins = ['Jakarta Port', 'Surabaya Port', 'Singapore', 'Tianjin', 'Yangpu'];
         $destinations = ['Singapore', 'Jakarta', 'Tanjung Priok', 'Manila', 'Bangkok'];
+        $prefixes = [
+            'dolpin' => 'DPS',
+            'nusantara' => 'NUS',
+            'beta' => 'BETA',
+            'mitra' => 'MTR',
+        ];
 
         $index = 1;
-        foreach (['dolpin' => $customers['dolpin'], 'beta' => $customers['beta']] as $key => $customer) {
-            $company = $customer->companies()->first();
+        foreach ($shares as $key => $count) {
+            $company = $companies[$key];
 
-            for ($i = 1; $i <= $perCustomer; $i++, $index++) {
+            for ($i = 1; $i <= $count; $i++, $index++) {
                 $origin = $origins[($i - 1) % count($origins)];
                 $destination = $destinations[$i % count($destinations)];
                 $type = $i % 5 === 0 ? BillOfLading::TYPE_EXPORT : BillOfLading::TYPE_IMPORT;
@@ -683,8 +867,8 @@ class DemoDataSeeder extends Seeder
 
                 $billOfLading = BillOfLading::query()->create([
                     'company_id' => $company->id,
-                    'bl_number' => sprintf('BL-%s-%04d', strtoupper($key === 'dolpin' ? 'DPS' : 'BETA'), $i),
-                    'aju_number' => sprintf('00005002%08d', $i),
+                    'bl_number' => sprintf('BL-%s-%04d', $prefixes[$key], $i),
+                    'aju_number' => sprintf('00005002%08d', $index),
                     'shipment_type' => $type,
                     'shipping_method' => $i % 3 === 0
                         ? BillOfLading::SHIPPING_METHOD_LCL
@@ -705,36 +889,41 @@ class DemoDataSeeder extends Seeder
                     ...$tracking,
                 ]);
 
-                $container = [
-                    'container_number' => sprintf('%sU%07d', strtoupper(substr($key, 0, 3)), $i),
-                    'seal_number' => sprintf('SEAL%05d', $i),
-                    'container_type' => $i % 2 === 0 ? "40'HC" : "20'GP",
-                    'package_count' => '100 BAGS',
-                    'gross_weight_kg' => 10000,
-                    'measurement_cbm' => 25,
-                    'sort_order' => 1,
-                ];
+                $containerCount = $i % 4 === 0 ? 3 : ($i % 2 === 0 ? 2 : 1);
+                $prefix = strtoupper(substr($prefixes[$key], 0, 3));
 
-                if ($isExport) {
-                    $container['stuffing_progress'] = $i % 2 === 0
-                        ? Container::STUFFING_FINISHED
-                        : Container::STUFFING_ON_PROCESS;
-                    $container['driver_name'] = 'Volume Driver '.$i;
-                    $container['license_number'] = sprintf('B %04d VOL', $i);
+                for ($slot = 1; $slot <= $containerCount; $slot++) {
+                    $container = [
+                        'container_number' => sprintf('%sU%05d%02d', $prefix, $index, $slot),
+                        'seal_number' => sprintf('SEAL%05d%02d', $i, $slot),
+                        'container_type' => $slot % 2 === 0 ? "40'HC" : "20'GP",
+                        'package_count' => '100 BAGS',
+                        'gross_weight_kg' => 10000,
+                        'measurement_cbm' => 25,
+                        'sort_order' => $slot,
+                    ];
 
-                    if ($i % 5 === 0) {
-                        $container['photo_door_id'] = $photos['door']->id;
-                        $container['photo_floor_id'] = $photos['floor']->id;
-                        $container['photo_eir_id'] = $photos['eir']->id;
-                        $container['photo_seal_id'] = $photos['seal']->id;
+                    if ($isExport) {
+                        $container['stuffing_progress'] = $slot % 2 === 0
+                            ? Container::STUFFING_FINISHED
+                            : Container::STUFFING_ON_PROCESS;
+                        $container['driver_name'] = 'Volume Driver '.$i.'-'.$slot;
+                        $container['license_number'] = sprintf('B %04d VOL', $i * 10 + $slot);
+
+                        if ($i % 5 === 0 && $slot === 1) {
+                            $container['photo_door_id'] = $photos['door']->id;
+                            $container['photo_floor_id'] = $photos['floor']->id;
+                            $container['photo_eir_id'] = $photos['eir']->id;
+                            $container['photo_seal_id'] = $photos['seal']->id;
+                        }
+                    } elseif ($i % 3 === 0) {
+                        $container['gate_out_cy_at'] = now()->subDays($i)->setTime(8, $slot * 10)->toDateTimeString();
+                        $container['factory_loading_progress'] = Container::FACTORY_LOADING_ON_PROCESS;
+                        $container['driver_name'] = 'Volume Driver '.$i.'-'.$slot;
                     }
-                } elseif ($i % 3 === 0) {
-                    $container['gate_out_cy_at'] = now()->subDays($i)->setTime(8, 0)->toDateTimeString();
-                    $container['factory_loading_progress'] = Container::FACTORY_LOADING_ON_PROCESS;
-                    $container['driver_name'] = 'Volume Driver '.$i;
-                }
 
-                $billOfLading->containers()->create($container);
+                    $billOfLading->containers()->create($container);
+                }
 
                 BillOfLadingUpdate::query()->create([
                     'bill_of_lading_id' => $billOfLading->id,
@@ -761,6 +950,24 @@ class DemoDataSeeder extends Seeder
                 }
             }
         }
+    }
+
+    /**
+     * Split volume BLs across companies: one third Dolpin, one third Beta, one sixth each for Nusantara and Mitra.
+     *
+     * @return array{dolpin: int, beta: int, nusantara: int, mitra: int}
+     */
+    private function volumeShares(int $total): array
+    {
+        $third = intdiv($total, 3);
+        $sixth = intdiv($total, 6);
+
+        return [
+            'dolpin' => $total - ($third + $sixth + $sixth),
+            'beta' => $third,
+            'nusantara' => $sixth,
+            'mitra' => $sixth,
+        ];
     }
 
     private function seedShieldPermissions(): void

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BillOfLading;
 use App\Models\BillOfLadingMilestoneState;
+use App\Models\Company;
 use App\Models\Container;
 use App\Models\User;
 use Awcodes\Curator\Models\Media;
@@ -21,18 +22,48 @@ class DemoSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertSame(1, User::role(User::ROLE_ADMIN)->count());
-        $this->assertSame(2, User::role(User::ROLE_CUSTOMER)->count());
+        $this->assertSame(4, User::role(User::ROLE_CUSTOMER)->count());
 
-        // 6 client sample BLs + 18 volume demo BLs
-        $this->assertSame(24, BillOfLading::query()->count());
+        // 8 client sample BLs + 18 volume demo BLs
+        $this->assertSame(26, BillOfLading::query()->count());
 
         $customerA = User::query()->where('email', 'customer-a@example.com')->firstOrFail();
         $customerB = User::query()->where('email', 'customer-b@example.com')->firstOrFail();
+        $customerC = User::query()->where('email', 'customer-c@example.com')->firstOrFail();
+        $customerD = User::query()->where('email', 'customer-d@example.com')->firstOrFail();
 
-        $this->assertTrue($customerA->companies()->where('name', 'PT Dolpin Putra Sejati')->exists());
-        $this->assertTrue($customerB->companies()->where('name', 'Beta Trading')->exists());
-        $this->assertSame(15, $customerA->accessibleBillOfLadings()->count()); // 6 client + 9 volume
-        $this->assertSame(9, $customerB->accessibleBillOfLadings()->count());
+        $this->assertEqualsCanonicalizing(
+            ['PT Dolpin Putra Sejati', 'PT Nusantara Forwarding', 'PT Samudera Mitra'],
+            $customerA->companies()->pluck('name')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            ['Beta Trading', 'PT Samudera Mitra'],
+            $customerB->companies()->pluck('name')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            ['PT Dolpin Putra Sejati'],
+            $customerC->companies()->pluck('name')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            ['Beta Trading'],
+            $customerD->companies()->pluck('name')->all(),
+        );
+
+        $dolpin = Company::query()->where('name', 'PT Dolpin Putra Sejati')->firstOrFail();
+        $beta = Company::query()->where('name', 'Beta Trading')->firstOrFail();
+        $this->assertEqualsCanonicalizing(
+            ['customer-a@example.com', 'customer-c@example.com'],
+            $dolpin->users()->pluck('email')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            ['customer-b@example.com', 'customer-d@example.com'],
+            $beta->users()->pluck('email')->all(),
+        );
+
+        $this->assertSame(20, $customerA->accessibleBillOfLadings()->count());
+        $this->assertSame(10, $customerB->accessibleBillOfLadings()->count());
+        $this->assertSame(12, $customerC->accessibleBillOfLadings()->count());
+        $this->assertSame(6, $customerD->accessibleBillOfLadings()->count());
 
         $this->assertTrue(
             BillOfLading::query()->where('bl_number', 'KMTCSIN3242091')->exists(),
@@ -83,10 +114,25 @@ class DemoSeederTest extends TestCase
             ]))
             ->exists());
 
+        $sharedBlNumbers = BillOfLading::query()
+            ->accessibleBy($customerA)
+            ->whereIn('id', $customerB->accessibleBillOfLadings()->pluck('id'))
+            ->pluck('bl_number');
+
+        $this->assertTrue($sharedBlNumbers->contains('MITRA-SIN-2026-001'));
+        $this->assertTrue(
+            $sharedBlNumbers->contains(fn (string $blNumber): bool => str_starts_with($blNumber, 'BL-MTR-')),
+        );
         $this->assertFalse(
             BillOfLading::query()
                 ->accessibleBy($customerA)
-                ->whereIn('id', $customerB->accessibleBillOfLadings()->pluck('id'))
+                ->where('bl_number', 'like', 'BL-BETA-%')
+                ->exists(),
+        );
+        $this->assertFalse(
+            BillOfLading::query()
+                ->accessibleBy($customerB)
+                ->where('bl_number', 'KMTCSIN3242091')
                 ->exists(),
         );
         $this->assertSame(
@@ -113,6 +159,11 @@ class DemoSeederTest extends TestCase
         $this->assertNotNull($exportContainer->photoDoor?->url);
         $this->assertCount(4, array_filter($exportContainer->documentationPhotos()));
         $this->assertSame(4, Media::query()->count());
+        $this->assertSame(3, Container::query()->where('bill_of_lading_id', $exportContainer->bill_of_lading_id)->count());
+        $this->assertGreaterThan(
+            1,
+            BillOfLading::query()->where('bl_number', 'KMTCSIN3242091')->firstOrFail()->containers()->count(),
+        );
     }
 
     public function test_demo_data_seeder_can_seed_hundreds_of_records_when_requested(): void
@@ -122,8 +173,8 @@ class DemoSeederTest extends TestCase
         try {
             $this->seed(DemoDataSeeder::class);
 
-            // 6 client samples + requested volume count
-            $this->assertSame(6 + DemoDataSeeder::DEMO_BL_COUNT, BillOfLading::query()->count());
+            // 8 client samples + requested volume count
+            $this->assertSame(8 + DemoDataSeeder::DEMO_BL_COUNT, BillOfLading::query()->count());
         } finally {
             DemoDataSeeder::$recordCount = null;
         }
@@ -134,8 +185,8 @@ class DemoSeederTest extends TestCase
         $this->seed(DemoDataSeeder::class);
         $this->seed(DemoDataSeeder::class);
 
-        $this->assertSame(24, BillOfLading::query()->count());
-        $this->assertSame(24, BillOfLading::withTrashed()->count());
-        $this->assertSame(24, BillOfLading::query()->distinct()->count('bl_number'));
+        $this->assertSame(26, BillOfLading::query()->count());
+        $this->assertSame(26, BillOfLading::withTrashed()->count());
+        $this->assertSame(26, BillOfLading::query()->distinct()->count('bl_number'));
     }
 }
