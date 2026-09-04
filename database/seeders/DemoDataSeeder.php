@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\BillOfLading;
 use App\Models\BillOfLadingUpdate;
+use App\Models\Company;
 use App\Models\User;
 use App\Services\BillOfLadingWorkflowService;
 use Illuminate\Database\Seeder;
@@ -56,6 +57,8 @@ class DemoDataSeeder extends Seeder
         DB::table('bill_of_lading_containers')->delete();
         DB::table('bill_of_lading_updates')->delete();
         DB::table('bill_of_ladings')->delete();
+        DB::table('company_user')->delete();
+        DB::table('companies')->delete();
         DB::table('model_has_roles')->delete();
         DB::table('model_has_permissions')->delete();
         User::query()->delete();
@@ -89,27 +92,37 @@ class DemoDataSeeder extends Seeder
      */
     private function seedCustomers(): array
     {
+        $dolpinCompany = Company::query()->create([
+            'name' => 'PT Dolpin Putra Sejati',
+            'address' => 'Komp. Jakarta Distribution Centre, Jl. Kapuk Kamal Raya No. 40 Blok B Kav. No. 03, Jakarta Utara 14470',
+        ]);
         $dolpin = User::factory()->create([
             'name' => 'PT Dolpin Putra Sejati',
             'email' => 'customer-a@example.com',
-            'company_name' => 'PT Dolpin Putra Sejati',
-            'company_address' => 'Komp. Jakarta Distribution Centre, Jl. Kapuk Kamal Raya No. 40 Blok B Kav. No. 03, Jakarta Utara 14470',
+            'company_name' => $dolpinCompany->name,
+            'company_address' => $dolpinCompany->address,
             'pic_name' => 'Ops PIC Dolpin',
             'pic_phone' => '+62 21 22057980',
             'last_login_at' => now()->subDays(1),
         ]);
         $dolpin->assignRole(User::ROLE_CUSTOMER);
+        $dolpin->companies()->attach($dolpinCompany);
 
+        $betaCompany = Company::query()->create([
+            'name' => 'Beta Trading',
+            'address' => 'Jl. Asia Afrika No. 25, Bandung 40111',
+        ]);
         $beta = User::factory()->create([
             'name' => 'Beta Trading',
             'email' => 'customer-b@example.com',
-            'company_name' => 'Beta Trading',
-            'company_address' => 'Jl. Asia Afrika No. 25, Bandung 40111',
+            'company_name' => $betaCompany->name,
+            'company_address' => $betaCompany->address,
             'pic_name' => 'Budi Santoso',
             'pic_phone' => '+62 813 9876 5432',
             'last_login_at' => now()->subDays(5),
         ]);
         $beta->assignRole(User::ROLE_CUSTOMER);
+        $beta->companies()->attach($betaCompany);
 
         return [
             'dolpin' => $dolpin,

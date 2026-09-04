@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -76,6 +77,32 @@ class UserFactory extends Factory
                 'company_name' => $companyName,
                 'name' => $attributes['name'] ?? $companyName,
             ];
+        })->afterCreating(function (User $user): void {
+            if ($user->companies()->exists()) {
+                return;
+            }
+
+            $companyName = $user->company_name ?: fake()->unique()->company();
+            $company = Company::query()->firstOrCreate(
+                ['name' => $companyName],
+                ['address' => $user->company_address],
+            );
+
+            $user->companies()->attach($company);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>|Company  $company
+     */
+    public function withCompany(array|Company $company = []): static
+    {
+        return $this->afterCreating(function (User $user) use ($company): void {
+            $model = $company instanceof Company
+                ? $company
+                : Company::factory()->create($company);
+
+            $user->companies()->syncWithoutDetaching([$model->id]);
         });
     }
 }
