@@ -135,6 +135,7 @@ class DemoDataSeeder extends Seeder
         $kmtc = $this->createBl([
             'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'KMTCSIN3242091',
+            'aju_number' => '00005002123420250702',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => 'KMTC Line',
@@ -183,6 +184,7 @@ class DemoDataSeeder extends Seeder
         $msc = $this->createBl([
             'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'MEDUYF895047',
+            'aju_number' => '00005002123420250618',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => 'Mediterranean Shipping Company (MSC)',
@@ -219,6 +221,7 @@ class DemoDataSeeder extends Seeder
         $samudera = $this->createBl([
             'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'SSLSGJKTCAE9741',
+            'aju_number' => '00005002123420250601',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => 'Samudera Shipping Line Ltd',
@@ -258,6 +261,7 @@ class DemoDataSeeder extends Seeder
         $cosco = $this->createBl([
             'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'COSU6394859890',
+            'aju_number' => '00005002123420250520',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => 'COSCO Shipping Lines',
@@ -296,6 +300,7 @@ class DemoDataSeeder extends Seeder
         $oocl = $this->createBl([
             'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'OOLU2327606650',
+            'aju_number' => '00005002123420250412',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => 'Orient Overseas Container Line (OOCL)',
@@ -335,6 +340,7 @@ class DemoDataSeeder extends Seeder
         $export = $this->createBl([
             'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'EXPORT-DPS-2026-001',
+            'aju_number' => '00005002987620260601',
             'shipment_type' => BillOfLading::TYPE_EXPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => 'Demo Export Carrier',
@@ -423,6 +429,7 @@ class DemoDataSeeder extends Seeder
                 $billOfLading = BillOfLading::query()->create([
                     'company_id' => $customer->companies()->first()->id,
                     'bl_number' => sprintf('BL-%s-%04d', strtoupper($key === 'dolpin' ? 'DPS' : 'BETA'), $i),
+                    'aju_number' => sprintf('00005002%08d', $i),
                     'shipment_type' => $type,
                     'shipping_method' => $i % 3 === 0
                         ? BillOfLading::SHIPPING_METHOD_LCL

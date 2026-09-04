@@ -37,16 +37,21 @@ class BillOfLadingsTable
                     ->sortable()
                     ->placeholder('-'),
                 TextColumn::make('shipment_type')
-                    ->label('Type')
+                    ->label('Status')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipment_types.{$state}", $state ?? '-'))
                     ->sortable(),
                 TextColumn::make('shipping_method')
-                    ->label('Method')
+                    ->label('Jenis Kontainer')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipping_methods.{$state}", strtoupper($state ?? '-')))
                     ->sortable()
                     ->toggleable(),
+                TextColumn::make('aju_number')
+                    ->label('Nomor Aju')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->placeholder('-'),
                 TextColumn::make('carrier_name')
                     ->label('Carrier')
                     ->toggleable()
@@ -93,10 +98,10 @@ class BillOfLadingsTable
                     ->label('Milestone')
                     ->options(fn (): array => BillOfLading::milestoneOptions()),
                 SelectFilter::make('shipment_type')
-                    ->label('Shipment Type')
+                    ->label('Status')
                     ->options(config('bl_workflows.shipment_types')),
                 SelectFilter::make('shipping_method')
-                    ->label('Shipping Method')
+                    ->label('Jenis Kontainer')
                     ->options(config('bl_workflows.shipping_methods')),
                 SelectFilter::make('customs_lane')
                     ->label('Customs Lane')

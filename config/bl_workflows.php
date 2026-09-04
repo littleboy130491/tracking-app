@@ -7,8 +7,9 @@ return [
     ],
 
     'shipping_methods' => [
-        'fcl' => 'FCL (Full Container Load)',
-        'lcl' => 'LCL (Less than Container Load)',
+        'fcl' => 'FCL',
+        'lcl' => 'LCL',
+        'air' => 'Air Shipment',
     ],
 
     'customs_lanes' => [

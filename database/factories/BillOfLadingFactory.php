@@ -27,6 +27,7 @@ class BillOfLadingFactory extends Factory
 
         return [
             'bl_number' => 'BL-'.fake()->unique()->numerify('######'),
+            'aju_number' => fake()->optional()->numerify('##############'),
             'company_id' => Company::factory(),
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,

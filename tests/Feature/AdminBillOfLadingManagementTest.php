@@ -99,6 +99,25 @@ class AdminBillOfLadingManagementTest extends TestCase
         $this->assertSame('https://maps.google.com/?q=Jakarta+Port', $billOfLading->fresh()->gps_tracking_url);
     }
 
+    public function test_admin_can_save_aju_number_and_air_shipment_container_type(): void
+    {
+        $billOfLading = BillOfLading::factory()->create([
+            'aju_number' => null,
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
+        ]);
+
+        $billOfLading->update([
+            'aju_number' => '00005002123420250702',
+            'shipping_method' => BillOfLading::SHIPPING_METHOD_AIR,
+        ]);
+
+        $billOfLading->refresh();
+
+        $this->assertSame('00005002123420250702', $billOfLading->aju_number);
+        $this->assertSame(BillOfLading::SHIPPING_METHOD_AIR, $billOfLading->shipping_method);
+        $this->assertSame('Air Shipment', $billOfLading->shippingMethodLabel());
+    }
+
     public function test_admin_can_find_a_bl_by_bl_number(): void
     {
         $target = BillOfLading::factory()->create([

@@ -16,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 #[Fillable([
     'bl_number',
+    'aju_number',
     'company_id',
     'shipment_type',
     'shipping_method',
@@ -59,6 +60,8 @@ class BillOfLading extends Model
     public const SHIPPING_METHOD_FCL = 'fcl';
 
     public const SHIPPING_METHOD_LCL = 'lcl';
+
+    public const SHIPPING_METHOD_AIR = 'air';
 
     public const STATUS_PENDING = 'Pending';
 

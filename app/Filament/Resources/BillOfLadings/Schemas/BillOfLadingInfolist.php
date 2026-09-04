@@ -23,11 +23,11 @@ class BillOfLadingInfolist
                             ->label('Company Address')
                             ->placeholder('-'),
                         TextEntry::make('shipment_type')
-                            ->label('Shipment Type')
+                            ->label('Status')
                             ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipment_types.{$state}", $state ?? '-'))
                             ->badge(),
                         TextEntry::make('shipping_method')
-                            ->label('Shipping Method')
+                            ->label('Jenis Kontainer')
                             ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipping_methods.{$state}", strtoupper($state ?? '-')))
                             ->badge(),
                     ])
@@ -35,7 +35,10 @@ class BillOfLadingInfolist
                 Section::make('Shipment Details')
                     ->schema([
                         TextEntry::make('bl_number')
-                            ->label('BL Number'),
+                            ->label('Nomor BL'),
+                        TextEntry::make('aju_number')
+                            ->label('Nomor Aju')
+                            ->placeholder('-'),
                         TextEntry::make('carrier_name')
                             ->label('Carrier')
                             ->placeholder('-'),
@@ -156,7 +159,7 @@ class BillOfLadingInfolist
                             ->placeholder('Not assigned')
                             ->badge(),
                         TextEntry::make('gps_tracking_url')
-                            ->label('GPS Tracking URL')
+                            ->label('Tracking URL')
                             ->placeholder('-')
                             ->url(fn ($state): ?string => filled($state) ? $state : null)
                             ->openUrlInNewTab(),

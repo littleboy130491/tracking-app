@@ -48,7 +48,8 @@ class BillOfLadingForm
                                 $set('consignee_address', $company->address);
                             }),
                         Select::make('shipment_type')
-                            ->label('Shipment Type')
+                            ->label('Status')
+                            ->helperText('Import or export. This determines the next tracking steps.')
                             ->options(config('bl_workflows.shipment_types'))
                             ->default(BillOfLading::TYPE_IMPORT)
                             ->required()
@@ -56,7 +57,7 @@ class BillOfLadingForm
                             ->dehydrated(fn (?BillOfLading $record): bool => $record === null)
                             ->live(),
                         Select::make('shipping_method')
-                            ->label('Shipping Method')
+                            ->label('Jenis Kontainer')
                             ->options(config('bl_workflows.shipping_methods'))
                             ->default(BillOfLading::SHIPPING_METHOD_FCL)
                             ->required()
@@ -66,9 +67,12 @@ class BillOfLadingForm
                             ->default(now())
                             ->required(),
                         TextInput::make('bl_number')
-                            ->label('BL Number')
+                            ->label('Nomor BL')
                             ->required()
                             ->unique(ignoreRecord: true)
+                            ->maxLength(255),
+                        TextInput::make('aju_number')
+                            ->label('Nomor Aju')
                             ->maxLength(255),
                     ])
                     ->columns(2)
@@ -191,7 +195,8 @@ class BillOfLadingForm
                             ->label('Destination Agent')
                             ->maxLength(255),
                         TextInput::make('gps_tracking_url')
-                            ->label('GPS Tracking URL')
+                            ->label('Tracking URL')
+                            ->helperText('External tracking link shown to the customer.')
                             ->url()
                             ->maxLength(2048),
                         Textarea::make('customer_note')
