@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\LogsChanges;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -29,7 +30,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasRoles, LogsChanges, Notifiable;
 
     protected static function booted(): void
     {
@@ -127,5 +128,10 @@ class User extends Authenticatable implements FilamentUser
     public function accessibleBillOfLadings(): Builder
     {
         return BillOfLading::query()->accessibleBy($this);
+    }
+
+    protected function changeLogSubject(): string
+    {
+        return 'customer '.($this->email ?: '#'.$this->getKey());
     }
 }

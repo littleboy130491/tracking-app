@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LogsChanges;
 use App\Services\BillOfLadingWorkflowService;
 use Database\Factories\BillOfLadingFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -51,7 +52,7 @@ use Illuminate\Validation\ValidationException;
 class BillOfLading extends Model
 {
     /** @use HasFactory<BillOfLadingFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, LogsChanges, SoftDeletes;
 
     public const TYPE_IMPORT = 'import';
 
@@ -339,6 +340,14 @@ class BillOfLading extends Model
             $attributes,
             $userId ?? auth()->id(),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $changes
+     */
+    protected function changeLogSubject(): string
+    {
+        return 'bill of lading '.($this->bl_number ?: '#'.$this->getKey());
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LogsChanges;
 use Database\Factories\ContainerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Container extends Model
 {
     /** @use HasFactory<ContainerFactory> */
-    use HasFactory;
+    use HasFactory, LogsChanges;
 
     protected static function booted(): void
     {
@@ -45,6 +46,11 @@ class Container extends Model
     public function billOfLading(): BelongsTo
     {
         return $this->belongsTo(BillOfLading::class);
+    }
+
+    protected function changeLogSubject(): string
+    {
+        return 'container '.($this->container_number ?: '#'.$this->getKey());
     }
 
     private function recordAudit(string $event): void

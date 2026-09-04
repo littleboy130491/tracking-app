@@ -52,6 +52,7 @@ class DemoDataSeeder extends Seeder
     {
         Schema::disableForeignKeyConstraints();
 
+        DB::table('logs')->delete();
         DB::table('bill_of_lading_audits')->delete();
         DB::table('bill_of_lading_milestone_states')->delete();
         DB::table('containers')->delete();
