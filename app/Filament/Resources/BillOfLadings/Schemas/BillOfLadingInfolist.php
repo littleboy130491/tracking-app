@@ -14,13 +14,14 @@ class BillOfLadingInfolist
         return $schema
             ->columns(1)
             ->components([
-                Section::make('Customer Information')
+                Section::make('Company Information')
                     ->schema([
-                        TextEntry::make('customer.company_name')
-                            ->label('Customer Name')
+                        TextEntry::make('company.name')
+                            ->label('Company Name')
                             ->placeholder('-'),
-                        TextEntry::make('customer.email')
-                            ->label('Email'),
+                        TextEntry::make('company.address')
+                            ->label('Company Address')
+                            ->placeholder('-'),
                         TextEntry::make('shipment_type')
                             ->label('Shipment Type')
                             ->formatStateUsing(fn (?string $state): string => config("bl_workflows.shipment_types.{$state}", $state ?? '-'))

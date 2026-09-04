@@ -3,15 +3,15 @@
 namespace App\Filament\Resources\BillOfLadings\Schemas;
 
 use App\Models\BillOfLading;
-use App\Models\User;
+use App\Models\Company;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Illuminate\Database\Eloquent\Builder;
 
 class BillOfLadingForm
 {
@@ -21,21 +21,32 @@ class BillOfLadingForm
             ->columns(1)
             ->components([
                 Section::make('Process Information')
-                    ->description('Choose the document process and assign it to a customer.')
+                    ->description('Choose the document process and assign it to a company.')
                     ->schema([
-                        Select::make('customer_id')
-                            ->label('Customer')
+                        Select::make('company_id')
+                            ->label('Company')
                             ->relationship(
-                                name: 'customer',
-                                titleAttribute: 'company_name',
-                                modifyQueryUsing: fn (Builder $query): Builder => $query
-                                    ->role(User::ROLE_CUSTOMER)
-                                    ->orderBy('company_name'),
+                                name: 'company',
+                                titleAttribute: 'name',
                             )
-                            ->getOptionLabelFromRecordUsing(fn (User $record): string => $record->company_name ?? $record->name)
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (?int $state, Set $set, string $operation): void {
+                                if ($operation !== 'create' || blank($state)) {
+                                    return;
+                                }
+
+                                $company = Company::query()->find($state);
+
+                                if (! $company) {
+                                    return;
+                                }
+
+                                $set('consignee_name', $company->name);
+                                $set('consignee_address', $company->address);
+                            }),
                         Select::make('shipment_type')
                             ->label('Shipment Type')
                             ->options(config('bl_workflows.shipment_types'))

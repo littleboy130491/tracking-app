@@ -17,11 +17,9 @@ class UserInfolist
                     ->schema([
                         TextEntry::make('email')
                             ->label('Email'),
-                        TextEntry::make('company_name')
-                            ->label('Company Name')
-                            ->placeholder('-'),
-                        TextEntry::make('company_address')
-                            ->label('Company Address')
+                        TextEntry::make('companies.name')
+                            ->label('Companies')
+                            ->badge()
                             ->placeholder('-'),
                         TextEntry::make('pic_name')
                             ->label('PIC Name')
@@ -31,7 +29,7 @@ class UserInfolist
                             ->placeholder('-'),
                         TextEntry::make('bill_of_ladings_count')
                             ->label('BL Records')
-                            ->state(fn ($record): int => $record->billOfLadings()->count()),
+                            ->state(fn ($record): int => $record->accessibleBillOfLadings()->count()),
                         TextEntry::make('last_login_at')
                             ->label('Last Login')
                             ->dateTime()

@@ -137,7 +137,7 @@ class DemoDataSeeder extends Seeder
 
         // 1) KMTC — Green lane, delivery completed
         $kmtc = $this->createBl([
-            'customer_id' => $dolpin->id,
+            'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'KMTCSIN3242091',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
@@ -185,7 +185,7 @@ class DemoDataSeeder extends Seeder
 
         // 2) MSC — Yellow lane, in progress at SPJK
         $msc = $this->createBl([
-            'customer_id' => $dolpin->id,
+            'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'MEDUYF895047',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
@@ -221,7 +221,7 @@ class DemoDataSeeder extends Seeder
 
         // 3) Samudera — Green lane, SPPB done / delivery pending
         $samudera = $this->createBl([
-            'customer_id' => $dolpin->id,
+            'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'SSLSGJKTCAE9741',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
@@ -260,7 +260,7 @@ class DemoDataSeeder extends Seeder
 
         // 4) COSCO — Red lane, physical inspection done, SPPB in progress
         $cosco = $this->createBl([
-            'customer_id' => $dolpin->id,
+            'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'COSU6394859890',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
@@ -298,7 +298,7 @@ class DemoDataSeeder extends Seeder
 
         // 5) OOCL — pre-lane, billing stage
         $oocl = $this->createBl([
-            'customer_id' => $dolpin->id,
+            'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'OOLU2327606650',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
@@ -337,7 +337,7 @@ class DemoDataSeeder extends Seeder
 
         // 6) Synthetic export sample
         $export = $this->createBl([
-            'customer_id' => $dolpin->id,
+            'company_id' => $dolpin->companies()->first()->id,
             'bl_number' => 'EXPORT-DPS-2026-001',
             'shipment_type' => BillOfLading::TYPE_EXPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
@@ -425,7 +425,7 @@ class DemoDataSeeder extends Seeder
                 $type = $i % 5 === 0 ? BillOfLading::TYPE_EXPORT : BillOfLading::TYPE_IMPORT;
 
                 $billOfLading = BillOfLading::query()->create([
-                    'customer_id' => $customer->id,
+                    'company_id' => $customer->companies()->first()->id,
                     'bl_number' => sprintf('BL-%s-%04d', strtoupper($key === 'dolpin' ? 'DPS' : 'BETA'), $i),
                     'shipment_type' => $type,
                     'shipping_method' => $i % 3 === 0

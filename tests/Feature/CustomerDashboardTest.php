@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillOfLading;
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,12 +17,10 @@ class CustomerDashboardTest extends TestCase
         $customerA = User::factory()->customer()->create();
         $customerB = User::factory()->customer()->create();
 
-        BillOfLading::factory()->create([
-            'customer_id' => $customerA->id,
+        BillOfLading::factory()->forUser($customerA)->create([
             'bl_number' => 'BL-CUSTOMER-A',
         ]);
-        BillOfLading::factory()->create([
-            'customer_id' => $customerB->id,
+        BillOfLading::factory()->forUser($customerB)->create([
             'bl_number' => 'BL-CUSTOMER-B',
         ]);
 
@@ -36,9 +35,7 @@ class CustomerDashboardTest extends TestCase
     {
         $customerA = User::factory()->customer()->create();
         $customerB = User::factory()->customer()->create();
-        $otherBillOfLading = BillOfLading::factory()->create([
-            'customer_id' => $customerB->id,
-        ]);
+        $otherBillOfLading = BillOfLading::factory()->forUser($customerB)->create();
 
         $this->actingAs($customerA)
             ->get(route('customer.bill-of-ladings.show', $otherBillOfLading))
@@ -54,8 +51,7 @@ class CustomerDashboardTest extends TestCase
     public function test_gps_url_renders_as_clickable_external_link_when_present(): void
     {
         $customer = User::factory()->customer()->create();
-        $billOfLading = BillOfLading::factory()->create([
-            'customer_id' => $customer->id,
+        $billOfLading = BillOfLading::factory()->forUser($customer)->create([
             'gps_tracking_url' => 'https://maps.google.com/?q=Jakarta+Port',
         ]);
 
@@ -69,8 +65,7 @@ class CustomerDashboardTest extends TestCase
     public function test_customer_can_search_by_bl_number_and_empty_state_appears(): void
     {
         $customer = User::factory()->customer()->create();
-        BillOfLading::factory()->create([
-            'customer_id' => $customer->id,
+        BillOfLading::factory()->forUser($customer)->create([
             'bl_number' => 'BL-FOUND',
         ]);
 
@@ -105,8 +100,7 @@ class CustomerDashboardTest extends TestCase
     {
         $customer = User::factory()->customer()->create();
 
-        $match = BillOfLading::factory()->create([
-            'customer_id' => $customer->id,
+        $match = BillOfLading::factory()->forUser($customer)->create([
             'bl_number' => 'BL-MATCH',
             'status' => 'In Progress',
             'shipment_type' => BillOfLading::TYPE_IMPORT,
@@ -114,8 +108,7 @@ class CustomerDashboardTest extends TestCase
         ]);
         $match->forceFill(['current_milestone_key' => 'process_do'])->saveQuietly();
 
-        $other = BillOfLading::factory()->create([
-            'customer_id' => $customer->id,
+        $other = BillOfLading::factory()->forUser($customer)->create([
             'bl_number' => 'BL-OTHER',
             'shipment_type' => BillOfLading::TYPE_EXPORT,
             'input_date' => '2026-01-10',
@@ -141,8 +134,9 @@ class CustomerDashboardTest extends TestCase
         $customer = User::factory()->customer()->create();
 
         BillOfLading::factory()
+            ->forUser($customer)
             ->count(12)
-            ->create(['customer_id' => $customer->id]);
+            ->create();
 
         $this->actingAs($customer)
             ->get(route('customer.dashboard'))
@@ -170,8 +164,7 @@ class CustomerDashboardTest extends TestCase
     public function test_customer_bl_detail_shows_tracking_fields_and_update_history(): void
     {
         $customer = User::factory()->customer()->create();
-        $billOfLading = BillOfLading::factory()->create([
-            'customer_id' => $customer->id,
+        $billOfLading = BillOfLading::factory()->forUser($customer)->create([
             'bl_number' => 'BL-DETAIL-001',
             'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
             'shipment_description' => 'Machinery shipment to Singapore',
@@ -236,5 +229,65 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('width=device-width', false)
             ->assertSee('/css/customer.css', false)
             ->assertSee('/js/customer.js', false);
+    }
+
+    public function test_customer_can_access_bill_of_ladings_from_every_assigned_company(): void
+    {
+        $alpha = Company::factory()->create(['name' => 'Alpha Logistics']);
+        $beta = Company::factory()->create(['name' => 'Beta Trading']);
+        $other = Company::factory()->create(['name' => 'Hidden Freight']);
+
+        $customer = User::factory()->customer()->create();
+        $customer->companies()->sync([$alpha->id, $beta->id]);
+
+        BillOfLading::factory()->create([
+            'company_id' => $alpha->id,
+            'bl_number' => 'BL-ALPHA',
+        ]);
+        BillOfLading::factory()->create([
+            'company_id' => $beta->id,
+            'bl_number' => 'BL-BETA',
+        ]);
+        $hidden = BillOfLading::factory()->create([
+            'company_id' => $other->id,
+            'bl_number' => 'BL-HIDDEN',
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.dashboard'))
+            ->assertOk()
+            ->assertSee('BL-ALPHA')
+            ->assertSee('Alpha Logistics')
+            ->assertSee('BL-BETA')
+            ->assertSee('Beta Trading')
+            ->assertDontSee('BL-HIDDEN');
+
+        $this->actingAs($customer)
+            ->get(route('customer.bill-of-ladings.show', $hidden))
+            ->assertNotFound();
+    }
+
+    public function test_customer_dashboard_and_bl_detail_show_company_name(): void
+    {
+        $company = Company::factory()->create(['name' => 'Harbour Consignee']);
+        $customer = User::factory()->customer()->create();
+        $customer->companies()->sync([$company->id]);
+
+        $billOfLading = BillOfLading::factory()->create([
+            'company_id' => $company->id,
+            'bl_number' => 'BL-COMPANY-NAME',
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.dashboard'))
+            ->assertOk()
+            ->assertSee('Harbour Consignee')
+            ->assertSee('BL-COMPANY-NAME');
+
+        $this->actingAs($customer)
+            ->get(route('customer.bill-of-ladings.show', $billOfLading))
+            ->assertOk()
+            ->assertSee('Harbour Consignee')
+            ->assertSee('Perusahaan');
     }
 }

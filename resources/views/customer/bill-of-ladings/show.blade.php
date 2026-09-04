@@ -34,6 +34,9 @@
             </div>
             <p class="eyebrow">Bill of lading</p>
             <h1>{{ $billOfLading->bl_number }}</h1>
+            @if ($billOfLading->company?->name)
+                <p class="tracking-company">{{ $billOfLading->company->name }}</p>
+            @endif
             <p class="tracking-route">{{ $pol }} <b aria-hidden="true">&rarr;</b> {{ $pod }}</p>
             @if ($billOfLading->shipment_description)
                 <p class="tracking-description">{{ $billOfLading->shipment_description }}</p>
@@ -119,6 +122,7 @@
                 </div>
 
                 <dl class="facts-grid">
+                    <div><dt>Perusahaan</dt><dd>{{ $billOfLading->company?->name ?: '-' }}</dd></div>
                     <div><dt>Carrier</dt><dd>{{ $billOfLading->carrier_name ?: '-' }}</dd></div>
                     <div><dt>Metode pengiriman</dt><dd>{{ $billOfLading->shippingMethodLabel() }}</dd></div>
                     <div>

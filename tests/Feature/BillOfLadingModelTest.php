@@ -13,17 +13,17 @@ class BillOfLadingModelTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_bill_of_lading_can_be_created_for_a_customer(): void
+    public function test_a_bill_of_lading_can_be_created_for_a_company(): void
     {
         $customer = User::factory()->customer()->create();
+        $company = $customer->companies()->firstOrFail();
 
-        $billOfLading = BillOfLading::factory()->create([
-            'customer_id' => $customer->id,
+        $billOfLading = BillOfLading::factory()->forUser($customer)->create([
             'bl_number' => 'BL-TEST-1001',
         ]);
 
-        $this->assertTrue($billOfLading->customer->is($customer));
-        $this->assertCount(1, $customer->billOfLadings);
+        $this->assertTrue($billOfLading->company->is($company));
+        $this->assertSame(1, $customer->accessibleBillOfLadings()->count());
     }
 
     public function test_duplicate_bl_numbers_are_rejected_by_database_and_validation(): void
@@ -57,7 +57,7 @@ class BillOfLadingModelTest extends TestCase
             'note' => 'Created.',
         ]);
 
-        $this->assertNotNull($billOfLading->customer);
+        $this->assertNotNull($billOfLading->company);
         $this->assertCount(1, $billOfLading->updates);
     }
 }

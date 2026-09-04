@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\BillOfLading;
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -26,7 +27,7 @@ class BillOfLadingFactory extends Factory
 
         return [
             'bl_number' => 'BL-'.fake()->unique()->numerify('######'),
-            'customer_id' => User::factory()->customer(),
+            'company_id' => Company::factory(),
             'shipment_type' => BillOfLading::TYPE_IMPORT,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_FCL,
             'carrier_name' => fake()->optional()->company(),
@@ -50,5 +51,22 @@ class BillOfLadingFactory extends Factory
         return $this->state(fn (): array => [
             'shipment_type' => BillOfLading::TYPE_EXPORT,
         ]);
+    }
+
+    public function forUser(User $user): static
+    {
+        return $this->state(function () use ($user): array {
+            $company = $user->companies()->first();
+
+            if (! $company) {
+                $company = Company::factory()->create([
+                    'name' => $user->company_name ?: fake()->unique()->company(),
+                    'address' => $user->company_address,
+                ]);
+                $user->companies()->attach($company);
+            }
+
+            return ['company_id' => $company->id];
+        });
     }
 }

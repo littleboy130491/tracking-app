@@ -8,9 +8,9 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Validation\ValidationException;
@@ -36,7 +36,7 @@ class User extends Authenticatable implements FilamentUser
     protected static function booted(): void
     {
         static::deleting(function (User $user): void {
-            if (BillOfLading::withTrashed()->where('customer_id', $user->id)->exists()) {
+            if (BillOfLading::withTrashed()->accessibleBy($user)->exists()) {
                 throw ValidationException::withMessages([
                     'user' => 'Customer accounts with BL history cannot be deleted. Deactivate the account instead.',
                 ]);
@@ -120,14 +120,14 @@ class User extends Authenticatable implements FilamentUser
      */
     public function companies(): BelongsToMany
     {
-        return $this->belongsToMany(Company::class)->withTimestamps()->orderBy('name');
+        return $this->belongsToMany(Company::class)->withTimestamps()->orderBy('companies.name');
     }
 
     /**
-     * @return HasMany<BillOfLading, $this>
+     * @return Builder<BillOfLading>
      */
-    public function billOfLadings(): HasMany
+    public function accessibleBillOfLadings(): Builder
     {
-        return $this->hasMany(BillOfLading::class, 'customer_id');
+        return BillOfLading::query()->accessibleBy($this);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\BillOfLadingWorkflowService;
 use Database\Factories\BillOfLadingFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 #[Fillable([
     'bl_number',
-    'customer_id',
+    'company_id',
     'shipment_type',
     'shipping_method',
     'carrier_name',
@@ -186,11 +187,23 @@ class BillOfLading extends Model
     }
 
     /**
-     * @return BelongsTo<User, $this>
+     * @return BelongsTo<Company, $this>
      */
-    public function customer(): BelongsTo
+    public function company(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * @param  Builder<BillOfLading>  $query
+     * @return Builder<BillOfLading>
+     */
+    public function scopeAccessibleBy($query, User $user)
+    {
+        return $query->whereIn(
+            'company_id',
+            $user->companies()->select('companies.id'),
+        );
     }
 
     /**

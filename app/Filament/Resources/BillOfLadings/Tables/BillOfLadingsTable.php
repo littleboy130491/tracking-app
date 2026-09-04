@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\BillOfLadings\Tables;
 
 use App\Models\BillOfLading;
-use App\Models\User;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
@@ -32,11 +31,11 @@ class BillOfLadingsTable
                     ->searchable()
                     ->listWithLineBreaks()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('customer.company_name')
-                    ->label('Customer')
+                TextColumn::make('company.name')
+                    ->label('Company')
                     ->searchable()
                     ->sortable()
-                    ->placeholder(fn ($record): string => $record->customer?->name ?? '-'),
+                    ->placeholder('-'),
                 TextColumn::make('shipment_type')
                     ->label('Type')
                     ->badge()
@@ -137,16 +136,12 @@ class BillOfLadingsTable
                         filled($data['value'] ?? null),
                         fn (Builder $query): Builder => $query->whereYear('input_date', (int) $data['value']),
                     )),
-                SelectFilter::make('customer_id')
-                    ->label('Customer')
+                SelectFilter::make('company_id')
+                    ->label('Company')
                     ->relationship(
-                        name: 'customer',
-                        titleAttribute: 'company_name',
-                        modifyQueryUsing: fn (Builder $query): Builder => $query
-                            ->role(User::ROLE_CUSTOMER)
-                            ->orderBy('company_name'),
+                        name: 'company',
+                        titleAttribute: 'name',
                     )
-                    ->getOptionLabelFromRecordUsing(fn (User $record): string => $record->company_name ?? $record->name)
                     ->searchable()
                     ->preload(),
             ], layout: FiltersLayout::AboveContentCollapsible)
@@ -154,7 +149,7 @@ class BillOfLadingsTable
             ->defaultSort('updated_at', 'desc')
             ->emptyStateIcon(Heroicon::OutlinedDocumentText)
             ->emptyStateHeading('No BL records yet')
-            ->emptyStateDescription('Create a BL record and assign it to a customer.')
+            ->emptyStateDescription('Create a BL record and assign it to a company.')
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),

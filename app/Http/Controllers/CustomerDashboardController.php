@@ -30,14 +30,17 @@ class CustomerDashboardController extends Controller
             'q' => trim((string) $request->query('q')),
             'status' => (string) $request->query('status', ''),
             'shipment_type' => (string) $request->query('shipment_type', ''),
+            'company_id' => (string) $request->query('company_id', ''),
             'month' => (string) $request->query('month', ''),
             'year' => (string) $request->query('year', ''),
             'per_page' => (string) $perPage,
         ];
 
+        $accessibleCompanyIds = $customer->companies()->pluck('companies.id');
+
         $billOfLadings = BillOfLading::query()
-            ->whereBelongsTo($customer, 'customer')
-            ->with('milestoneStates')
+            ->accessibleBy($customer)
+            ->with(['milestoneStates', 'company'])
             ->when($filters['q'] !== '', function ($query) use ($filters) {
                 $query->where(function ($inner) use ($filters): void {
                     $inner->where('bl_number', 'like', "%{$filters['q']}%")
@@ -53,6 +56,12 @@ class CustomerDashboardController extends Controller
                 $filters['shipment_type'] !== ''
                     && array_key_exists($filters['shipment_type'], config('bl_workflows.shipment_types', [])),
                 fn ($query) => $query->where('shipment_type', $filters['shipment_type']),
+            )
+            ->when(
+                $filters['company_id'] !== ''
+                    && ctype_digit($filters['company_id'])
+                    && $accessibleCompanyIds->contains((int) $filters['company_id']),
+                fn ($query) => $query->where('company_id', (int) $filters['company_id']),
             )
             ->when(
                 $filters['month'] !== ''
@@ -74,7 +83,7 @@ class CustomerDashboardController extends Controller
             : 'YEAR(input_date)';
 
         $availableYears = BillOfLading::query()
-            ->whereBelongsTo($customer, 'customer')
+            ->accessibleBy($customer)
             ->whereNotNull('input_date')
             ->selectRaw("{$yearExpression} as input_year")
             ->distinct()
@@ -83,7 +92,7 @@ class CustomerDashboardController extends Controller
             ->map(fn ($year): int => (int) $year);
 
         $statusCounts = BillOfLading::query()
-            ->whereBelongsTo($customer, 'customer')
+            ->accessibleBy($customer)
             ->selectRaw('status, COUNT(*) as aggregate')
             ->groupBy('status')
             ->pluck('aggregate', 'status');
@@ -113,8 +122,10 @@ class CustomerDashboardController extends Controller
             'statusCounts' => $statusCounts,
             'totalCount' => $statusCounts->sum(),
             'hasBlSearch' => $filters['q'] !== '',
+            'companies' => $customer->companies()->orderBy('name')->get(),
             'hasListingFilters' => $filters['status'] !== ''
                 || $filters['shipment_type'] !== ''
+                || $filters['company_id'] !== ''
                 || $filters['month'] !== ''
                 || $filters['year'] !== '',
         ]);
@@ -126,10 +137,16 @@ class CustomerDashboardController extends Controller
             return $redirect;
         }
 
-        abort_unless($billOfLading->customer_id === Auth::id(), 404);
+        /** @var User $customer */
+        $customer = Auth::user();
+
+        abort_unless(
+            $customer->companies()->whereKey($billOfLading->company_id)->exists(),
+            404,
+        );
 
         $billOfLading->load([
-            'customer',
+            'company',
             'containers',
             'milestoneStates',
             'updates' => fn ($query) => $query

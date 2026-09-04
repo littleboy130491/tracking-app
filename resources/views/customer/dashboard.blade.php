@@ -1,8 +1,16 @@
-<x-customer.layout :title="($customer->company_name ?? $customer->name).' — Pengiriman'">
+@php
+    $headingName = $companies->count() === 1
+        ? $companies->first()->name
+        : ($customer->pic_name ?: $customer->name);
+@endphp
+<x-customer.layout :title="$headingName.' — Pengiriman'">
     <header class="page-heading">
         <div>
             <p class="eyebrow">Portal pelanggan</p>
-            <h1>{{ $customer->company_name ?? $customer->name }}</h1>
+            <h1>{{ $headingName }}</h1>
+            @if ($companies->count() > 1)
+                <p class="account-companies">{{ $companies->pluck('name')->join(' · ') }}</p>
+            @endif
             <p class="account-email">{{ $customer->email }}</p>
         </div>
     </header>
@@ -58,6 +66,18 @@
                     @endforeach
                 </select>
             </div>
+
+            @if ($companies->count() > 1)
+                <div class="compact-field">
+                    <label for="company_id">Perusahaan</label>
+                    <select id="company_id" name="company_id">
+                        <option value="">Semua perusahaan</option>
+                        @foreach ($companies as $company)
+                            <option value="{{ $company->id }}" @selected($filters['company_id'] === (string) $company->id)>{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
 
             <div class="compact-field">
                 <label for="month">Bulan</label>
@@ -128,6 +148,7 @@
                                 <span class="status-tag status-{{ $statusClass }}">{{ $billOfLading->displayStatus() }}</span>
                             </div>
                             <h3>{{ $billOfLading->bl_number }}</h3>
+                            <p class="shipment-company">{{ $billOfLading->company?->name ?: 'Perusahaan belum ditentukan' }}</p>
                             <p>{{ $billOfLading->carrier_name ?: 'Carrier belum ditentukan' }}</p>
                         </div>
 

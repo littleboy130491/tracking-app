@@ -31,8 +31,8 @@ class DemoSeederTest extends TestCase
         $this->assertSame('PT Dolpin Putra Sejati', $customerA->company_name);
         $this->assertTrue($customerA->companies()->where('name', 'PT Dolpin Putra Sejati')->exists());
         $this->assertTrue($customerB->companies()->where('name', 'Beta Trading')->exists());
-        $this->assertSame(15, $customerA->billOfLadings()->count()); // 6 client + 9 volume
-        $this->assertSame(9, $customerB->billOfLadings()->count());
+        $this->assertSame(15, $customerA->accessibleBillOfLadings()->count()); // 6 client + 9 volume
+        $this->assertSame(9, $customerB->accessibleBillOfLadings()->count());
 
         $this->assertTrue(
             BillOfLading::query()->where('bl_number', 'KMTCSIN3242091')->exists(),
@@ -85,9 +85,13 @@ class DemoSeederTest extends TestCase
 
         $this->assertFalse(
             BillOfLading::query()
-                ->whereBelongsTo($customerA, 'customer')
-                ->whereIn('id', $customerB->billOfLadings()->pluck('id'))
+                ->accessibleBy($customerA)
+                ->whereIn('id', $customerB->accessibleBillOfLadings()->pluck('id'))
                 ->exists(),
+        );
+        $this->assertSame(
+            'PT Dolpin Putra Sejati',
+            BillOfLading::query()->where('bl_number', 'KMTCSIN3242091')->first()?->company?->name,
         );
     }
 

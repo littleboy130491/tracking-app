@@ -53,7 +53,9 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->role(User::ROLE_CUSTOMER);
+        return parent::getEloquentQuery()
+            ->role(User::ROLE_CUSTOMER)
+            ->with('companies');
     }
 
     public static function getPages(): array

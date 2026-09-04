@@ -15,10 +15,10 @@ class UsersTable
     {
         return $table
             ->columns([
-                TextColumn::make('company_name')
-                    ->label('Company')
+                TextColumn::make('companies.name')
+                    ->label('Companies')
+                    ->badge()
                     ->searchable()
-                    ->sortable()
                     ->placeholder('-'),
                 TextColumn::make('email')
                     ->searchable()
@@ -29,8 +29,8 @@ class UsersTable
                     ->toggleable(),
                 TextColumn::make('bill_of_ladings_count')
                     ->label('BL Records')
-                    ->counts('billOfLadings')
-                    ->sortable(),
+                    ->state(fn ($record): int => $record->accessibleBillOfLadings()->count())
+                    ->sortable(false),
                 TextColumn::make('last_login_at')
                     ->label('Last Login')
                     ->dateTime()
@@ -47,7 +47,7 @@ class UsersTable
             ->filters([
                 //
             ])
-            ->defaultSort('company_name')
+            ->defaultSort('email')
             ->emptyStateIcon(Heroicon::OutlinedUsers)
             ->emptyStateHeading('No customers yet')
             ->emptyStateDescription('Create a customer account to start assigning BL records.')

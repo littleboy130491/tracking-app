@@ -17,9 +17,8 @@ class AdminBillOfLadingManagementTest extends TestCase
     {
         $customerA = User::factory()->customer()->create(['name' => 'Customer A']);
 
-        $billOfLading = BillOfLading::factory()->create([
+        $billOfLading = BillOfLading::factory()->forUser($customerA)->create([
             'bl_number' => 'BL-CUSTOMER-A-001',
-            'customer_id' => $customerA->id,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
             'shipment_description' => 'Shipment for customer A',
             'input_date' => '2026-06-15',
@@ -28,7 +27,7 @@ class AdminBillOfLadingManagementTest extends TestCase
 
         $this->assertDatabaseHas('bill_of_ladings', [
             'bl_number' => 'BL-CUSTOMER-A-001',
-            'customer_id' => $customerA->id,
+            'company_id' => $customerA->companies()->first()->id,
             'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
         ]);
         $this->assertSame('receive_docs', $billOfLading->fresh()->current_milestone_key);
@@ -38,9 +37,8 @@ class AdminBillOfLadingManagementTest extends TestCase
     {
         $customerB = User::factory()->customer()->create(['name' => 'Customer B']);
 
-        BillOfLading::factory()->create([
+        BillOfLading::factory()->forUser($customerB)->create([
             'bl_number' => 'BL-CUSTOMER-B-001',
-            'customer_id' => $customerB->id,
             'shipment_description' => 'Shipment for customer B',
             'input_date' => '2026-06-16',
             'status' => BillOfLading::STATUS_IN_PROGRESS,
@@ -48,16 +46,15 @@ class AdminBillOfLadingManagementTest extends TestCase
 
         $this->assertDatabaseHas('bill_of_ladings', [
             'bl_number' => 'BL-CUSTOMER-B-001',
-            'customer_id' => $customerB->id,
+            'company_id' => $customerB->companies()->first()->id,
         ]);
     }
 
     public function test_admin_cannot_create_two_bl_records_with_the_same_bl_number(): void
     {
         $customer = User::factory()->customer()->create();
-        BillOfLading::factory()->create([
+        BillOfLading::factory()->forUser($customer)->create([
             'bl_number' => 'BL-DUPLICATE-ADMIN',
-            'customer_id' => $customer->id,
         ]);
 
         $validator = Validator::make([
