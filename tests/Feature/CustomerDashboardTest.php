@@ -172,6 +172,7 @@ class CustomerDashboardTest extends TestCase
         $customer = User::factory()->customer()->create();
         $billOfLading = BillOfLading::factory()->forUser($customer)->create([
             'bl_number' => 'BL-DETAIL-001',
+            'aju_number' => '00005002123420250702',
             'shipping_method' => BillOfLading::SHIPPING_METHOD_LCL,
             'shipment_description' => 'Machinery shipment to Singapore',
             'port_of_loading' => 'Jakarta Port, Indonesia',
@@ -202,8 +203,14 @@ class CustomerDashboardTest extends TestCase
             ->get(route('customer.bill-of-ladings.show', $billOfLading))
             ->assertOk()
             ->assertSee('BL-DETAIL-001')
-            ->assertSee('Machinery shipment to Singapore')
-            ->assertSee('LCL (Less than Container Load)')
+            ->assertSee('Ringkasan')
+            ->assertSee('Nomor BL')
+            ->assertSee('Nomor Aju')
+            ->assertSee('00005002123420250702')
+            ->assertSee('Jenis Kontainer')
+            ->assertSee('LCL')
+            ->assertSee('data-shipment-type="'.$billOfLading->shipment_type.'"', false)
+            ->assertSee('Tracking URL')
             ->assertSee('Singapore Port, Singapore')
             ->assertSee('Pihak terkait')
             ->assertSee('PT Example Shipper')
@@ -221,8 +228,7 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('Pembaruan')
             ->assertSee('Initial history entry.')
             ->assertSee('Proses impor')
-            ->assertSee('Kontainer')
-            ->assertSee('Langkah saat ini');
+            ->assertSee('Kontainer');
     }
 
     public function test_customer_pages_include_mobile_viewport_layout(): void

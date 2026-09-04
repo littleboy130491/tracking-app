@@ -1,16 +1,8 @@
 <x-customer.layout title="{{ $billOfLading->bl_number }}">
     @php
-        $allNodes = $timelineTracks->flatMap(fn ($track) => $track['nodes']);
-        $currentNode = $allNodes->firstWhere('state', 'in_progress')
-            ?? $allNodes->last(fn ($node) => $node['state'] === 'completed');
-        $completedCount = $allNodes->where('state', 'completed')->count();
-        $totalCount = $allNodes->count();
-        $progressPercent = $totalCount > 0 ? (int) round(($completedCount / $totalCount) * 100) : 0;
-        $pol = $billOfLading->port_of_loading ?: '-';
         $pod = $billOfLading->port_of_discharge ?: '-';
         $cbm = $billOfLading->measurement_cbm;
         $latestNote = $billOfLading->customer_note;
-        $statusClass = \Illuminate\Support\Str::slug($billOfLading->status);
         $hasRelatedParties = filled($billOfLading->shipper_name)
             || filled($billOfLading->consignee_name)
             || filled($billOfLading->notify_party_name);
@@ -22,51 +14,53 @@
 
     <a class="back-link" href="{{ route('customer.dashboard') }}">&larr; Pengiriman</a>
 
-    <header class="tracking-header {{ $laneClass }}">
-        <div class="tracking-heading">
-            <div class="shipment-tags">
-                <span class="type-tag type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</span>
-                <span class="type-tag">{{ $billOfLading->shippingMethodLabel() }}</span>
-                <span class="status-tag status-{{ $statusClass }}">{{ $billOfLading->displayStatus() }}</span>
-                @if ($billOfLading->customsLaneLabel())
-                    <span class="lane-tag">{{ $billOfLading->customsLaneLabel() }}</span>
-                @endif
-            </div>
+    <section
+        class="bl-summary {{ $laneClass }}"
+        data-shipment-type="{{ $billOfLading->shipment_type }}"
+        aria-label="Ringkasan bill of lading"
+    >
+        <div class="section-title">
             <p class="eyebrow">Bill of lading</p>
-            <h1>{{ $billOfLading->bl_number }}</h1>
-            @if ($billOfLading->company?->name)
-                <p class="tracking-company">{{ $billOfLading->company->name }}</p>
-            @endif
-            <p class="tracking-route">{{ $pol }} <b aria-hidden="true">&rarr;</b> {{ $pod }}</p>
-            @if ($billOfLading->shipment_description)
-                <p class="tracking-description">{{ $billOfLading->shipment_description }}</p>
-            @endif
+            <h1>Ringkasan</h1>
         </div>
 
-        <div class="tracking-summary">
+        <dl class="summary-facts">
             <div>
-                <span>Langkah saat ini</span>
-                <strong>{{ $currentNode['label'] ?? ($billOfLading->phase ?: $billOfLading->displayStatus()) }}</strong>
+                <dt>Nomor BL</dt>
+                <dd>{{ $billOfLading->bl_number }}</dd>
             </div>
-            <div class="progress-summary">
-                <span>{{ $completedCount }} dari {{ $totalCount }} langkah</span>
-                <strong>{{ $progressPercent }}%</strong>
+            <div>
+                <dt>Status</dt>
+                <dd>
+                    <span class="type-tag type-{{ $billOfLading->shipment_type }}">{{ $billOfLading->shipmentTypeLabel() }}</span>
+                </dd>
             </div>
-            <div class="progress-meter" aria-label="{{ $progressPercent }} persen selesai">
-                <span style="width: {{ $progressPercent }}%"></span>
+            <div>
+                <dt>Tracking URL</dt>
+                <dd>
+                    @if ($billOfLading->gps_tracking_url)
+                        <a
+                            href="{{ $billOfLading->gps_tracking_url }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Buka tautan
+                        </a>
+                    @else
+                        -
+                    @endif
+                </dd>
             </div>
-            @if ($billOfLading->gps_tracking_url)
-                <a
-                    class="button gps-button"
-                    href="{{ $billOfLading->gps_tracking_url }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Buka pelacakan GPS
-                </a>
-            @endif
-        </div>
-    </header>
+            <div>
+                <dt>Nomor Aju</dt>
+                <dd>{{ $billOfLading->aju_number ?: '-' }}</dd>
+            </div>
+            <div>
+                <dt>Jenis Kontainer</dt>
+                <dd>{{ $billOfLading->shippingMethodLabel() }}</dd>
+            </div>
+        </dl>
+    </section>
 
     @if ($latestNote)
         <aside class="latest-update">
@@ -124,7 +118,6 @@
                 <dl class="facts-grid">
                     <div><dt>Perusahaan</dt><dd>{{ $billOfLading->company?->name ?: '-' }}</dd></div>
                     <div><dt>Carrier</dt><dd>{{ $billOfLading->carrier_name ?: '-' }}</dd></div>
-                    <div><dt>Metode pengiriman</dt><dd>{{ $billOfLading->shippingMethodLabel() }}</dd></div>
                     <div>
                         <dt>Kapal / voyage</dt>
                         <dd>{{ $billOfLading->vessel_name ?: '-' }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}</dd>
