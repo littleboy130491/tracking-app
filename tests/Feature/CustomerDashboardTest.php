@@ -385,6 +385,7 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('DO-99')
             ->assertSee('Export Line')
             ->assertSee('INPUT — Process 2')
+            ->assertSee('Pick Up Empty Cont at Depot')
             ->assertSee('Koja Depot')
             ->assertSee('EXPU9999999')
             ->assertSee('Budi Driver')
@@ -392,7 +393,7 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('FINAL — Process 3')
             ->assertSee('ON-PROCESS')
             ->assertSee('21,000.000 kg')
-            ->assertDontSee('Proses impor');
+            ->assertDontSee('Tracking Progress IMPORT');
     }
 
     public function test_customer_sees_container_documentation_photos_from_curator(): void

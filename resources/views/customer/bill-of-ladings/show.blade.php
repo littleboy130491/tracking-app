@@ -72,12 +72,10 @@
 
     <div class="tracking-layout">
         <main class="tracking-main">
-            @if ($billOfLading->isExport())
-                @include('customer.bill-of-ladings.partials.export-progress')
-            @endif
-
-            @if ($billOfLading->isImport())
-                @include('customer.bill-of-ladings.partials.import-progress')
+            @if ($billOfLading->isExport() || $billOfLading->isImport())
+                @include('customer.bill-of-ladings.partials.shipment-tracking', [
+                    'progress' => \App\Support\CustomerShipmentProgress::from($billOfLading),
+                ])
             @endif
 
             @if ($hasRelatedParties)
@@ -114,7 +112,7 @@
                 </section>
             @endif
 
-            <section class="detail-section">
+            <section class="detail-section" aria-label="Kontainer">
                 <div class="section-title section-title-row">
                     <div>
                         <p class="eyebrow">Peralatan</p>
