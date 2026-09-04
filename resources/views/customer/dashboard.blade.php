@@ -1,16 +1,8 @@
-@php
-    $headingName = $companies->count() === 1
-        ? $companies->first()->name
-        : ($customer->pic_name ?: $customer->name);
-@endphp
-<x-customer.layout :title="$headingName.' — Pengiriman'">
+<x-customer.layout title="Pengiriman">
     <header class="page-heading">
         <div>
             <p class="eyebrow">Portal pelanggan</p>
-            <h1>{{ $headingName }}</h1>
-            @if ($companies->count() > 1)
-                <p class="account-companies">{{ $companies->pluck('name')->join(' · ') }}</p>
-            @endif
+            <h1>Pengiriman</h1>
             <p class="account-email">{{ $customer->email }}</p>
         </div>
     </header>
@@ -67,7 +59,7 @@
                 </select>
             </div>
 
-            @if ($companies->count() > 1)
+            @if ($companies->isNotEmpty())
                 <div class="compact-field">
                     <label for="company_id">Perusahaan</label>
                     <select id="company_id" name="company_id">

@@ -82,7 +82,7 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('Tidak ada pengiriman ditemukan');
     }
 
-    public function test_customer_dashboard_shows_company_name_and_login_email(): void
+    public function test_customer_dashboard_shows_login_email_and_company_filter(): void
     {
         $customer = User::factory()
             ->customer()
@@ -94,8 +94,12 @@ class CustomerDashboardTest extends TestCase
         $this->actingAs($customer)
             ->get(route('customer.dashboard'))
             ->assertOk()
+            ->assertSee('Pengiriman')
+            ->assertSee('customer@example.com')
+            ->assertSee('Perusahaan')
             ->assertSee('Acme Logistics')
-            ->assertSee('customer@example.com');
+            ->assertSee('name="company_id"', false)
+            ->assertDontSee('account-companies', false);
     }
 
     public function test_customer_can_filter_dashboard_by_status_type_month_and_year(): void
@@ -267,6 +271,13 @@ class CustomerDashboardTest extends TestCase
         $this->actingAs($customer)
             ->get(route('customer.bill-of-ladings.show', $hidden))
             ->assertNotFound();
+
+        $this->actingAs($customer)
+            ->get(route('customer.dashboard', ['company_id' => $alpha->id]))
+            ->assertOk()
+            ->assertSee('BL-ALPHA')
+            ->assertDontSee('BL-BETA')
+            ->assertSee('name="company_id"', false);
     }
 
     public function test_customer_dashboard_and_bl_detail_show_company_name(): void
