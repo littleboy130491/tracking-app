@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\BillOfLading;
-use App\Models\BillOfLadingContainer;
 use App\Models\BillOfLadingMilestoneState;
+use App\Models\Container;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoDataSeeder;
@@ -56,7 +56,7 @@ class DemoSeederTest extends TestCase
                 fn (BillOfLadingMilestoneState $milestone): bool => $milestone->state === BillOfLadingMilestoneState::STATE_IN_PROGRESS
             )
         );
-        $this->assertTrue(BillOfLadingContainer::query()->exists());
+        $this->assertTrue(Container::query()->exists());
 
         $ooclContainers = BillOfLading::query()
             ->where('bl_number', 'OOLU2327606650')

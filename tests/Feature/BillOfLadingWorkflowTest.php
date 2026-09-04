@@ -90,7 +90,7 @@ class BillOfLadingWorkflowTest extends TestCase
         ]);
 
         $this->assertSame(1, $billOfLading->containers()->count());
-        $this->assertDatabaseHas('bill_of_lading_containers', [
+        $this->assertDatabaseHas('containers', [
             'bill_of_lading_id' => $billOfLading->id,
             'container_number' => 'TESTU1234567',
         ]);

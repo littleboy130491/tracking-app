@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillOfLading;
+use App\Models\Container;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -59,5 +60,30 @@ class BillOfLadingModelTest extends TestCase
 
         $this->assertNotNull($billOfLading->company);
         $this->assertCount(1, $billOfLading->updates);
+    }
+
+    public function test_a_bill_of_lading_can_have_many_containers(): void
+    {
+        $billOfLading = BillOfLading::factory()->create();
+
+        $first = $billOfLading->containers()->create([
+            'container_number' => 'TESTU1111111',
+            'seal_number' => 'SEAL1',
+            'container_type' => "20'GP",
+            'sort_order' => 1,
+        ]);
+        $second = Container::factory()->create([
+            'bill_of_lading_id' => $billOfLading->id,
+            'container_number' => 'TESTU2222222',
+            'sort_order' => 2,
+        ]);
+
+        $this->assertSame(2, $billOfLading->containers()->count());
+        $this->assertTrue($first->billOfLading->is($billOfLading));
+        $this->assertTrue($second->billOfLading->is($billOfLading));
+        $this->assertSame(
+            ['TESTU1111111', 'TESTU2222222'],
+            $billOfLading->containers()->pluck('container_number')->all(),
+        );
     }
 }

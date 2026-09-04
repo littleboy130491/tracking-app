@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Database\Factories\ContainerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -16,13 +18,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'measurement_cbm',
     'sort_order',
 ])]
-class BillOfLadingContainer extends Model
+class Container extends Model
 {
+    /** @use HasFactory<ContainerFactory> */
+    use HasFactory;
+
     protected static function booted(): void
     {
-        static::created(fn (BillOfLadingContainer $container) => $container->recordAudit('container_created'));
-        static::updated(fn (BillOfLadingContainer $container) => $container->recordAudit('container_updated'));
-        static::deleted(fn (BillOfLadingContainer $container) => $container->recordAudit('container_deleted'));
+        static::created(fn (Container $container) => $container->recordAudit('container_created'));
+        static::updated(fn (Container $container) => $container->recordAudit('container_updated'));
+        static::deleted(fn (Container $container) => $container->recordAudit('container_deleted'));
     }
 
     protected function casts(): array

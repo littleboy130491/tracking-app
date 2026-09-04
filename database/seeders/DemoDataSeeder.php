@@ -54,7 +54,7 @@ class DemoDataSeeder extends Seeder
 
         DB::table('bill_of_lading_audits')->delete();
         DB::table('bill_of_lading_milestone_states')->delete();
-        DB::table('bill_of_lading_containers')->delete();
+        DB::table('containers')->delete();
         DB::table('bill_of_lading_updates')->delete();
         DB::table('bill_of_ladings')->delete();
         DB::table('company_user')->delete();

@@ -215,11 +215,11 @@ class BillOfLading extends Model
     }
 
     /**
-     * @return HasMany<BillOfLadingContainer, $this>
+     * @return HasMany<Container, $this>
      */
     public function containers(): HasMany
     {
-        return $this->hasMany(BillOfLadingContainer::class)->orderBy('sort_order')->orderBy('id');
+        return $this->hasMany(Container::class)->orderBy('sort_order')->orderBy('id');
     }
 
     /**
