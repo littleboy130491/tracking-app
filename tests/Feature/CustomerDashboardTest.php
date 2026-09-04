@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BillOfLading;
 use App\Models\Company;
+use App\Models\Container;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -228,7 +229,9 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('Pembaruan')
             ->assertSee('Initial history entry.')
             ->assertSee('Proses impor')
-            ->assertSee('Kontainer');
+            ->assertSee('Kontainer')
+            ->assertSee('Log')
+            ->assertSee('Created bill of lading');
     }
 
     public function test_customer_pages_include_mobile_viewport_layout(): void
@@ -308,5 +311,59 @@ class CustomerDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('Harbour Consignee')
             ->assertSee('Perusahaan');
+    }
+
+    public function test_customer_can_open_container_detail_from_bl_in_a_new_tab(): void
+    {
+        $customer = User::factory()->customer()->create();
+        $billOfLading = BillOfLading::factory()->forUser($customer)->create([
+            'bl_number' => 'BL-CONTAINER-LINK',
+        ]);
+        $container = Container::factory()->create([
+            'bill_of_lading_id' => $billOfLading->id,
+            'container_number' => 'TESTU8888888',
+            'seal_number' => 'SEAL88',
+        ]);
+
+        $containerUrl = route('customer.containers.show', [$billOfLading, $container]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.dashboard'))
+            ->assertOk()
+            ->assertSee('TESTU8888888')
+            ->assertSee('target="_blank"', false)
+            ->assertSee($containerUrl, false);
+
+        $this->actingAs($customer)
+            ->get(route('customer.bill-of-ladings.show', $billOfLading))
+            ->assertOk()
+            ->assertSee('TESTU8888888')
+            ->assertSee('target="_blank"', false)
+            ->assertSee($containerUrl, false)
+            ->assertSee('Log');
+
+        $this->actingAs($customer)
+            ->get($containerUrl)
+            ->assertOk()
+            ->assertSee('TESTU8888888')
+            ->assertSee('SEAL88')
+            ->assertSee('BL-CONTAINER-LINK')
+            ->assertSee('Log')
+            ->assertSee('Created container');
+    }
+
+    public function test_customer_cannot_open_another_companys_container(): void
+    {
+        $customer = User::factory()->customer()->create();
+        $other = User::factory()->customer()->create();
+        $otherBl = BillOfLading::factory()->forUser($other)->create();
+        $container = Container::factory()->create([
+            'bill_of_lading_id' => $otherBl->id,
+            'container_number' => 'HIDNU0000001',
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.containers.show', [$otherBl, $container]))
+            ->assertNotFound();
     }
 }

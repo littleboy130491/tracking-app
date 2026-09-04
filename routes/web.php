@@ -20,3 +20,5 @@ Route::post('/customer/logout', [CustomerAuthController::class, 'logout'])->name
 
 Route::get('/customer/dashboard', [CustomerDashboardController::class, 'index'])->name('customer.dashboard');
 Route::get('/customer/bill-of-ladings/{billOfLading}', [CustomerDashboardController::class, 'show'])->name('customer.bill-of-ladings.show');
+Route::get('/customer/bill-of-ladings/{billOfLading}/containers/{container}', [CustomerDashboardController::class, 'showContainer'])
+    ->name('customer.containers.show');

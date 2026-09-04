@@ -198,8 +198,22 @@
                             </thead>
                             <tbody>
                                 @foreach ($billOfLading->containers as $container)
-                                    <tr>
-                                        <td data-label="Kontainer"><strong>{{ $container->container_number }}</strong></td>
+                                    <tr
+                                        class="clickable-row"
+                                        tabindex="0"
+                                        role="link"
+                                        data-href="{{ route('customer.containers.show', [$billOfLading, $container]) }}"
+                                        data-target="_blank"
+                                    >
+                                        <td data-label="Kontainer">
+                                            <a
+                                                href="{{ route('customer.containers.show', [$billOfLading, $container]) }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <strong>{{ $container->container_number }}</strong>
+                                            </a>
+                                        </td>
                                         <td data-label="Segel">{{ $container->seal_number ?: '-' }}</td>
                                         <td data-label="Jenis">{{ $container->container_type ?: '-' }}</td>
                                         <td data-label="Kemasan">{{ $container->package_count ?: '-' }}</td>
@@ -212,6 +226,8 @@
                     </div>
                 @endif
             </section>
+
+            <x-customer.logs :logs="$billOfLading->logs" />
         </main>
 
         <aside class="history-section">

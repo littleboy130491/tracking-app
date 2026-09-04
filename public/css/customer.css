@@ -409,6 +409,14 @@ select:focus {
     font-weight: 700;
 }
 
+.shipment-containers {
+    margin-top: 4px !important;
+}
+
+.shipment-containers a {
+    font-weight: 700;
+}
+
 .shipment-identity h3,
 .shipment-route span,
 .shipment-progress strong,
@@ -803,6 +811,10 @@ select:focus {
     text-transform: uppercase;
 }
 
+.container-table tr.clickable-row:hover {
+    background: var(--surface-soft);
+}
+
 .history-section {
     position: sticky;
     top: 90px;
@@ -847,6 +859,51 @@ select:focus {
 
 .history-item p {
     margin: 5px 0 0;
+    color: #4f5d59;
+    font-size: 13px;
+}
+
+.log-list {
+    display: grid;
+    gap: 17px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.log-item {
+    padding-bottom: 17px;
+    border-bottom: 1px solid var(--line);
+}
+
+.log-item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.log-item time,
+.log-item strong,
+.log-item span {
+    display: block;
+}
+
+.log-item time,
+.log-item span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.log-item time {
+    margin-bottom: 4px;
+}
+
+.log-item strong {
+    font-size: 13px;
+}
+
+.log-item p {
+    margin: 5px 0 4px;
     color: #4f5d59;
     font-size: 13px;
 }

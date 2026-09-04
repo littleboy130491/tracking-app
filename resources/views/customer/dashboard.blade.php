@@ -142,6 +142,17 @@
                             <h3>{{ $billOfLading->bl_number }}</h3>
                             <p class="shipment-company">{{ $billOfLading->company?->name ?: 'Perusahaan belum ditentukan' }}</p>
                             <p>{{ $billOfLading->carrier_name ?: 'Carrier belum ditentukan' }}</p>
+                            @if ($billOfLading->containers->isNotEmpty())
+                                <p class="shipment-containers">
+                                    @foreach ($billOfLading->containers as $container)
+                                        <a
+                                            href="{{ route('customer.containers.show', [$billOfLading, $container]) }}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >{{ $container->container_number }}</a>@if (! $loop->last)<span aria-hidden="true">, </span>@endif
+                                    @endforeach
+                                </p>
+                            @endif
                         </div>
 
                         <div class="shipment-route">

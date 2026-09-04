@@ -1,6 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.clickable-row[data-href]').forEach((row) => {
         const navigate = () => {
+            if (row.dataset.target === '_blank') {
+                window.open(row.dataset.href, '_blank', 'noopener');
+                return;
+            }
+
             window.location = row.dataset.href;
         };
 

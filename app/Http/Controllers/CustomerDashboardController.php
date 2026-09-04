@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BillOfLading;
 use App\Models\BillOfLadingUpdate;
+use App\Models\Container;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class CustomerDashboardController extends Controller
 
         $billOfLadings = BillOfLading::query()
             ->accessibleBy($customer)
-            ->with(['milestoneStates', 'company'])
+            ->with(['milestoneStates', 'company', 'containers'])
             ->when($filters['q'] !== '', function ($query) use ($filters) {
                 $query->where(function ($inner) use ($filters): void {
                     $inner->where('bl_number', 'like', "%{$filters['q']}%")
@@ -148,6 +149,7 @@ class CustomerDashboardController extends Controller
         $billOfLading->load([
             'company',
             'containers',
+            'logs.user',
             'milestoneStates',
             'updates' => fn ($query) => $query
                 ->where(fn ($inner) => $inner
@@ -165,6 +167,29 @@ class CustomerDashboardController extends Controller
                 'red' => 'lane-red',
                 default => 'lane-neutral',
             },
+        ]);
+    }
+
+    public function showContainer(BillOfLading $billOfLading, Container $container): View|RedirectResponse
+    {
+        if ($redirect = $this->guardCustomer()) {
+            return $redirect;
+        }
+
+        /** @var User $customer */
+        $customer = Auth::user();
+
+        abort_unless(
+            $customer->companies()->whereKey($billOfLading->company_id)->exists()
+            && $container->bill_of_lading_id === $billOfLading->id,
+            404,
+        );
+
+        $container->load(['billOfLading.company', 'logs.user']);
+
+        return view('customer.containers.show', [
+            'billOfLading' => $billOfLading,
+            'container' => $container,
         ]);
     }
 
