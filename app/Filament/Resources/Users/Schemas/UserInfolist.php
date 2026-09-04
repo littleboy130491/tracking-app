@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Filament\Infolists\LogsSection;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -43,6 +44,7 @@ class UserInfolist
                             ->dateTime(),
                     ])
                     ->columns(1),
+                LogsSection::make(),
             ]);
     }
 }

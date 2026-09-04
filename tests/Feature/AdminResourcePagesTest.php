@@ -29,7 +29,7 @@ class AdminResourcePagesTest extends TestCase
             'company_id' => $company->id,
             'bl_number' => 'BL-ADMIN-UI',
         ]);
-        Container::factory()->create([
+        $container = Container::factory()->create([
             'bill_of_lading_id' => $billOfLading->id,
             'container_number' => 'TESTU9999999',
         ]);
@@ -49,7 +49,9 @@ class AdminResourcePagesTest extends TestCase
             ->get(BillOfLadingResource::getUrl('view', ['record' => $billOfLading]))
             ->assertOk()
             ->assertSee('Harbour Consignee')
-            ->assertSee('TESTU9999999');
+            ->assertSee('TESTU9999999')
+            ->assertSee('Logs')
+            ->assertSee('Created bill of lading');
 
         $this->actingAs($admin)
             ->get(ContainerResource::getUrl('index'))
@@ -57,6 +59,19 @@ class AdminResourcePagesTest extends TestCase
             ->assertSee('TESTU9999999')
             ->assertSee('BL-ADMIN-UI')
             ->assertSee('Harbour Consignee');
+
+        $this->actingAs($admin)
+            ->get(ContainerResource::getUrl('view', ['record' => $container]))
+            ->assertOk()
+            ->assertSee('TESTU9999999')
+            ->assertSee('Logs')
+            ->assertSee('Created container');
+
+        $this->actingAs($admin)
+            ->get(UserResource::getUrl('view', ['record' => $customer]))
+            ->assertOk()
+            ->assertSee('harbour-pic@example.com')
+            ->assertSee('Logs');
 
         $this->actingAs($admin)
             ->get(UserResource::getUrl('index'))

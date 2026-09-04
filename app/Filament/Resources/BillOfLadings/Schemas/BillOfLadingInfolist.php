@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\BillOfLadings\Schemas;
 
+use App\Filament\Infolists\LogsSection;
+use App\Filament\Resources\Containers\ContainerResource;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -112,12 +114,17 @@ class BillOfLadingInfolist
                     ])
                     ->columns(2),
                 Section::make('Containers')
+                    ->description('Containers for this BL. Add or edit them with the repeater on the edit form.')
                     ->schema([
                         RepeatableEntry::make('containers')
                             ->label('')
                             ->placeholder('No containers recorded.')
                             ->schema([
-                                TextEntry::make('container_number')->label('Container'),
+                                TextEntry::make('container_number')
+                                    ->label('Container')
+                                    ->url(fn ($record): ?string => $record?->getKey()
+                                        ? ContainerResource::getUrl('view', ['record' => $record])
+                                        : null),
                                 TextEntry::make('seal_number')->label('Seal')->placeholder('-'),
                                 TextEntry::make('container_type')->label('Type')->placeholder('-'),
                                 TextEntry::make('package_count')->label('Packages')->placeholder('-'),
@@ -202,31 +209,7 @@ class BillOfLadingInfolist
                             ])
                             ->columns(3),
                     ]),
-                Section::make('Audit Log')
-                    ->schema([
-                        RepeatableEntry::make('audits')
-                            ->label('')
-                            ->placeholder('No audited changes yet.')
-                            ->schema([
-                                TextEntry::make('created_at')
-                                    ->label('Changed')
-                                    ->dateTime(),
-                                TextEntry::make('user.name')
-                                    ->label('Changed By')
-                                    ->placeholder('System'),
-                                TextEntry::make('event')
-                                    ->label('Event')
-                                    ->badge(),
-                                TextEntry::make('changes')
-                                    ->label('Changes')
-                                    ->formatStateUsing(fn ($state): string => collect($state ?? [])
-                                        ->keys()
-                                        ->join(', '))
-                                    ->columnSpanFull(),
-                            ])
-                            ->columns(3),
-                    ])
-                    ->collapsed(),
+                LogsSection::make(),
             ]);
     }
 }

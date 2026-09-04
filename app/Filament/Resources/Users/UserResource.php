@@ -55,7 +55,7 @@ class UserResource extends Resource
     {
         return parent::getEloquentQuery()
             ->role(User::ROLE_CUSTOMER)
-            ->with('companies');
+            ->with(['companies', 'logs.user']);
     }
 
     public static function getPages(): array

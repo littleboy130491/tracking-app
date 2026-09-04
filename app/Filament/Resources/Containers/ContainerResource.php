@@ -5,7 +5,9 @@ namespace App\Filament\Resources\Containers;
 use App\Filament\Resources\Containers\Pages\CreateContainer;
 use App\Filament\Resources\Containers\Pages\EditContainer;
 use App\Filament\Resources\Containers\Pages\ListContainers;
+use App\Filament\Resources\Containers\Pages\ViewContainer;
 use App\Filament\Resources\Containers\Schemas\ContainerForm;
+use App\Filament\Resources\Containers\Schemas\ContainerInfolist;
 use App\Filament\Resources\Containers\Tables\ContainersTable;
 use App\Models\Container;
 use BackedEnum;
@@ -32,6 +34,11 @@ class ContainerResource extends Resource
         return ContainerForm::configure($schema);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return ContainerInfolist::configure($schema);
+    }
+
     public static function table(Table $table): Table
     {
         return ContainersTable::configure($table);
@@ -39,7 +46,7 @@ class ContainerResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['billOfLading.company']);
+        return parent::getEloquentQuery()->with(['billOfLading.company', 'logs.user']);
     }
 
     public static function getPages(): array
@@ -47,6 +54,7 @@ class ContainerResource extends Resource
         return [
             'index' => ListContainers::route('/'),
             'create' => CreateContainer::route('/create'),
+            'view' => ViewContainer::route('/{record}'),
             'edit' => EditContainer::route('/{record}/edit'),
         ];
     }

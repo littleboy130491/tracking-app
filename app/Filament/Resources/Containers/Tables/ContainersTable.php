@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Containers\Tables;
 
 use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -56,6 +57,7 @@ class ContainersTable
             ->emptyStateHeading('No containers yet')
             ->emptyStateDescription('Add containers on a BL record, or create one here and assign it to a bill of lading.')
             ->recordActions([
+                ViewAction::make(),
                 EditAction::make(),
             ])
             ->toolbarActions([]);

@@ -137,6 +137,7 @@ class BillOfLadingForm
                             ->rows(2)
                             ->columnSpanFull(),
                         Repeater::make('containers')
+                            ->label('Container list')
                             ->relationship()
                             ->orderColumn('sort_order')
                             ->schema([
@@ -171,6 +172,7 @@ class BillOfLadingForm
                             ->collapsible()
                             ->itemLabel(fn (array $state): ?string => $state['container_number'] ?? null)
                             ->addActionLabel('Add container')
+                            ->helperText('One BL can have many containers. Each container belongs to this BL.')
                             ->columnSpanFull(),
                     ])
                     ->columns(2)
