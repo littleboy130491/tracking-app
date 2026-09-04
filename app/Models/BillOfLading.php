@@ -24,6 +24,19 @@ use Illuminate\Validation\ValidationException;
     'carrier_name',
     'shipment_description',
     'shipper_name',
+    'exporter_name',
+    'booking_order_checked',
+    'do_number',
+    'depot_closing_at',
+    'cy_closing_at',
+    'container_size',
+    'pickup_depot',
+    'stuffing_date',
+    'stuffing_destination',
+    'on_the_way_factory_at',
+    'peb_npe_checked',
+    'gate_in_cy_processed',
+    'final_checking_notes',
     'consignee_name',
     'consignee_address',
     'notify_party_name',
@@ -97,6 +110,13 @@ class BillOfLading extends Model
             'input_date' => 'date',
             'retention_until' => 'date',
             'shipped_on_board_date' => 'date',
+            'stuffing_date' => 'date',
+            'depot_closing_at' => 'datetime',
+            'cy_closing_at' => 'datetime',
+            'on_the_way_factory_at' => 'datetime',
+            'booking_order_checked' => 'boolean',
+            'peb_npe_checked' => 'boolean',
+            'gate_in_cy_processed' => 'boolean',
             'gross_weight_kg' => 'decimal:2',
             'measurement_cbm' => 'decimal:4',
         ];
@@ -283,6 +303,24 @@ class BillOfLading extends Model
     public function shippingMethodLabel(): string
     {
         return config("bl_workflows.shipping_methods.{$this->shipping_method}", strtoupper((string) $this->shipping_method));
+    }
+
+    public function isExport(): bool
+    {
+        return $this->shipment_type === self::TYPE_EXPORT;
+    }
+
+    public function isImport(): bool
+    {
+        return $this->shipment_type === self::TYPE_IMPORT;
+    }
+
+    public function exporterDisplayName(): string
+    {
+        return $this->exporter_name
+            ?: $this->shipper_name
+            ?: $this->company?->name
+            ?: '-';
     }
 
     /**
