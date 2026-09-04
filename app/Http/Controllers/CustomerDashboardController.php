@@ -148,7 +148,10 @@ class CustomerDashboardController extends Controller
 
         $billOfLading->load([
             'company',
-            'containers',
+            'containers.photoDoor',
+            'containers.photoFloor',
+            'containers.photoEir',
+            'containers.photoSeal',
             'logs.user',
             'milestoneStates',
             'updates' => fn ($query) => $query
@@ -185,7 +188,14 @@ class CustomerDashboardController extends Controller
             404,
         );
 
-        $container->load(['billOfLading.company', 'logs.user']);
+        $container->load([
+            'billOfLading.company',
+            'logs.user',
+            'photoDoor',
+            'photoFloor',
+            'photoEir',
+            'photoSeal',
+        ]);
 
         return view('customer.containers.show', [
             'billOfLading' => $billOfLading,

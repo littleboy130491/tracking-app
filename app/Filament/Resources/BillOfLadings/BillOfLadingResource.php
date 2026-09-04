@@ -53,7 +53,14 @@ class BillOfLadingResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['company', 'containers', 'logs.user']);
+        return parent::getEloquentQuery()->with([
+            'company',
+            'containers.photoDoor',
+            'containers.photoFloor',
+            'containers.photoEir',
+            'containers.photoSeal',
+            'logs.user',
+        ]);
     }
 
     public static function getPages(): array

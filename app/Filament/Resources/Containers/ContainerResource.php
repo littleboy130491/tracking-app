@@ -46,7 +46,14 @@ class ContainerResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['billOfLading.company', 'logs.user']);
+        return parent::getEloquentQuery()->with([
+            'billOfLading.company',
+            'logs.user',
+            'photoDoor',
+            'photoFloor',
+            'photoEir',
+            'photoSeal',
+        ]);
     }
 
     public static function getPages(): array

@@ -6,6 +6,7 @@ use App\Models\BillOfLading;
 use App\Models\BillOfLadingMilestoneState;
 use App\Models\Container;
 use App\Models\User;
+use Awcodes\Curator\Models\Media;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,6 +93,26 @@ class DemoSeederTest extends TestCase
             'PT Dolpin Putra Sejati',
             BillOfLading::query()->where('bl_number', 'KMTCSIN3242091')->first()?->company?->name,
         );
+
+        $kmtc = BillOfLading::query()->where('bl_number', 'KMTCSIN3242091')->firstOrFail();
+        $this->assertSame(BillOfLading::CUSTOMS_RESPONSE_SPPB, $kmtc->customs_response);
+        $this->assertTrue($kmtc->document_checked);
+        $this->assertTrue($kmtc->empty_container_returned);
+        $this->assertNotNull($kmtc->containers()->whereNotNull('gate_out_cy_at')->first());
+
+        $cosco = BillOfLading::query()->where('bl_number', 'COSU6394859890')->firstOrFail();
+        $this->assertTrue($cosco->isSpjmResponse());
+        $this->assertTrue($cosco->waiting_spjm_to_sppb);
+        $this->assertNotEmpty($cosco->import_documents);
+
+        $exportContainer = Container::query()
+            ->where('container_number', 'EXPU1234567')
+            ->with(['photoDoor', 'photoFloor', 'photoEir', 'photoSeal'])
+            ->firstOrFail();
+        $this->assertNotNull($exportContainer->photo_door_id);
+        $this->assertNotNull($exportContainer->photoDoor?->url);
+        $this->assertCount(4, array_filter($exportContainer->documentationPhotos()));
+        $this->assertSame(4, Media::query()->count());
     }
 
     public function test_demo_data_seeder_can_seed_hundreds_of_records_when_requested(): void

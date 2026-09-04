@@ -73,6 +73,11 @@ class ContainerForm
                     ->schema(ContainerExportFields::make())
                     ->columns(2)
                     ->collapsible(),
+                Section::make('Import tracking')
+                    ->description('Gate out CY, factory loading, and empty return follow this container.')
+                    ->schema(ContainerImportFields::make())
+                    ->columns(2)
+                    ->collapsible(),
             ]);
     }
 }

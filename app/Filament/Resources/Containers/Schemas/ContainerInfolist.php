@@ -49,10 +49,10 @@ class ContainerInfolist
                     ->columns(3),
                 Section::make('Export tracking')
                     ->schema([
-                        ImageEntry::make('photo_door_path')->label('Pintu')->disk('public')->placeholder('-'),
-                        ImageEntry::make('photo_floor_path')->label('Lantai')->disk('public')->placeholder('-'),
-                        ImageEntry::make('photo_eir_path')->label('EIR')->disk('public')->placeholder('-'),
-                        ImageEntry::make('photo_seal_path')->label('Seal')->disk('public')->placeholder('-'),
+                        ImageEntry::make('photoDoor.url')->label('Pintu')->placeholder('-'),
+                        ImageEntry::make('photoFloor.url')->label('Lantai')->placeholder('-'),
+                        ImageEntry::make('photoEir.url')->label('EIR')->placeholder('-'),
+                        ImageEntry::make('photoSeal.url')->label('Seal')->placeholder('-'),
                         TextEntry::make('driver_name')->label('Driver Name')->placeholder('-'),
                         TextEntry::make('license_number')->label('No. License')->placeholder('-'),
                         TextEntry::make('driver_tracking_url')
@@ -69,6 +69,17 @@ class ContainerInfolist
                         TextEntry::make('vgm_kg')->label('Amount of VGM (kg)')->placeholder('-'),
                         IconEntry::make('final_checked')->label('Final Checking')->boolean(),
                         TextEntry::make('final_checked_at')->label('Final Checking Date')->date()->placeholder('-'),
+                    ])
+                    ->columns(4),
+                Section::make('Import tracking')
+                    ->schema([
+                        TextEntry::make('gate_out_cy_at')->label('Gate out CY')->dateTime()->placeholder('-'),
+                        TextEntry::make('factory_loading_progress')
+                            ->label('Loading in Factory')
+                            ->formatStateUsing(fn (?string $state): string => Container::FACTORY_LOADING_PROGRESS[$state] ?? '-')
+                            ->placeholder('-'),
+                        TextEntry::make('empty_return_depot')->label('Return Empty Depot')->placeholder('-'),
+                        TextEntry::make('empty_return_at')->label('Return Empty Date')->date()->placeholder('-'),
                     ])
                     ->columns(4),
                 LogsSection::make(),

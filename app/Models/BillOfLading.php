@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 #[Fillable([
@@ -25,6 +26,31 @@ use Illuminate\Validation\ValidationException;
     'shipment_description',
     'shipper_name',
     'exporter_name',
+    'importer_name',
+    'document_checked',
+    'draft_pib_checked',
+    'customer_confirmed',
+    'pib_sent_to_customs',
+    'billing_issued',
+    'thc_paid',
+    'waiting_do_release',
+    'do_released',
+    'do_release_date',
+    'billing_paid',
+    'departure_date',
+    'eta_at',
+    'customs_response',
+    'import_documents',
+    'waiting_bahandle',
+    'bahandle_paid',
+    'container_inspected',
+    'waiting_spjm_to_sppb',
+    'shipping_schedule',
+    'terminal_name',
+    'loading_date',
+    'loading_destination',
+    'arrived_at_factory_at',
+    'empty_container_returned',
     'booking_order_checked',
     'do_number',
     'depot_closing_at',
@@ -77,6 +103,14 @@ class BillOfLading extends Model
 
     public const SHIPPING_METHOD_AIR = 'air';
 
+    public const CUSTOMS_RESPONSE_SPPB = 'sppb';
+
+    public const CUSTOMS_RESPONSE_AP = 'ap';
+
+    public const CUSTOMS_RESPONSE_SPJK = 'spjk';
+
+    public const CUSTOMS_RESPONSE_SPJM = 'spjm';
+
     public const STATUS_PENDING = 'Pending';
 
     public const STATUS_IN_PROGRESS = 'In Progress';
@@ -114,9 +148,29 @@ class BillOfLading extends Model
             'depot_closing_at' => 'datetime',
             'cy_closing_at' => 'datetime',
             'on_the_way_factory_at' => 'datetime',
+            'arrived_at_factory_at' => 'datetime',
+            'eta_at' => 'datetime',
+            'departure_date' => 'date',
+            'do_release_date' => 'date',
+            'loading_date' => 'date',
             'booking_order_checked' => 'boolean',
+            'document_checked' => 'boolean',
+            'draft_pib_checked' => 'boolean',
+            'customer_confirmed' => 'boolean',
+            'pib_sent_to_customs' => 'boolean',
+            'billing_issued' => 'boolean',
+            'thc_paid' => 'boolean',
+            'waiting_do_release' => 'boolean',
+            'do_released' => 'boolean',
+            'billing_paid' => 'boolean',
+            'waiting_bahandle' => 'boolean',
+            'bahandle_paid' => 'boolean',
+            'container_inspected' => 'boolean',
+            'waiting_spjm_to_sppb' => 'boolean',
+            'empty_container_returned' => 'boolean',
             'peb_npe_checked' => 'boolean',
             'gate_in_cy_processed' => 'boolean',
+            'import_documents' => 'array',
             'gross_weight_kg' => 'decimal:2',
             'measurement_cbm' => 'decimal:4',
         ];
@@ -321,6 +375,36 @@ class BillOfLading extends Model
             ?: $this->shipper_name
             ?: $this->company?->name
             ?: '-';
+    }
+
+    public function importerDisplayName(): string
+    {
+        return $this->importer_name
+            ?: $this->consignee_name
+            ?: $this->company?->name
+            ?: '-';
+    }
+
+    public function isSpjmResponse(): bool
+    {
+        return $this->customs_response === self::CUSTOMS_RESPONSE_SPJM;
+    }
+
+    public function customsResponseLabel(): string
+    {
+        return config("bl_workflows.customs_responses.{$this->customs_response}", $this->customs_response ?: '-');
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function importDocumentUrls(): array
+    {
+        return collect($this->import_documents ?? [])
+            ->filter()
+            ->map(fn (string $path): string => Storage::disk('public')->url($path))
+            ->values()
+            ->all();
     }
 
     /**

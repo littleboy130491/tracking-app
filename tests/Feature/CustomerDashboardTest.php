@@ -6,6 +6,7 @@ use App\Models\BillOfLading;
 use App\Models\Company;
 use App\Models\Container;
 use App\Models\User;
+use Awcodes\Curator\Models\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -221,14 +222,10 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('Jurong Logistics Hub')
             ->assertSee('10 Jurong Pier Road')
             ->assertSee('Example Destination Agent')
-            ->assertSee('CNC machinery parts, 12 crates')
-            ->assertSee('3,200.50 kg')
-            ->assertSee('14.20 CBM')
-            ->assertSee('Sedang diproses')
             ->assertSee('Currently in transit.')
             ->assertSee('Pembaruan')
             ->assertSee('Initial history entry.')
-            ->assertSee('Proses impor')
+            ->assertSee('Tracking Progress IMPORT')
             ->assertSee('Kontainer')
             ->assertSee('Log')
             ->assertSee('Created bill of lading');
@@ -304,13 +301,14 @@ class CustomerDashboardTest extends TestCase
             ->get(route('customer.dashboard'))
             ->assertOk()
             ->assertSee('Harbour Consignee')
-            ->assertSee('BL-COMPANY-NAME');
+            ->assertSee('BL-COMPANY-NAME')
+            ->assertSee('Perusahaan');
 
         $this->actingAs($customer)
             ->get(route('customer.bill-of-ladings.show', $billOfLading))
             ->assertOk()
-            ->assertSee('Harbour Consignee')
-            ->assertSee('Perusahaan');
+            ->assertSee('BL-COMPANY-NAME')
+            ->assertSee('Ringkasan');
     }
 
     public function test_customer_can_open_container_detail_from_bl_in_a_new_tab(): void
@@ -397,6 +395,40 @@ class CustomerDashboardTest extends TestCase
             ->assertDontSee('Proses impor');
     }
 
+    public function test_customer_sees_container_documentation_photos_from_curator(): void
+    {
+        $customer = User::factory()->customer()->create();
+        $billOfLading = BillOfLading::factory()->forUser($customer)->create([
+            'shipment_type' => BillOfLading::TYPE_EXPORT,
+        ]);
+        $media = Media::query()->create([
+            'disk' => 'public',
+            'directory' => 'container-photos',
+            'visibility' => 'public',
+            'name' => 'door',
+            'path' => 'container-photos/door.jpg',
+            'ext' => 'jpg',
+            'type' => 'image/jpeg',
+            'size' => 1024,
+        ]);
+        $container = Container::factory()->create([
+            'bill_of_lading_id' => $billOfLading->id,
+            'container_number' => 'EXPUPHOTO001',
+            'photo_door_id' => $media->id,
+        ]);
+
+        $photoUrl = $container->fresh()->documentationPhotos()['Pintu'];
+
+        $this->assertNotNull($photoUrl);
+
+        $this->actingAs($customer)
+            ->get(route('customer.containers.show', [$billOfLading, $container]))
+            ->assertOk()
+            ->assertSee('Pintu')
+            ->assertSee($photoUrl, false)
+            ->assertSee('Belum ada foto');
+    }
+
     public function test_import_bl_detail_does_not_show_export_process_sections(): void
     {
         $customer = User::factory()->customer()->create();
@@ -407,7 +439,7 @@ class CustomerDashboardTest extends TestCase
         $this->actingAs($customer)
             ->get(route('customer.bill-of-ladings.show', $billOfLading))
             ->assertOk()
-            ->assertSee('Proses impor')
+            ->assertSee('Tracking Progress IMPORT')
             ->assertDontSee('Tracking Progress EXPORT');
     }
 

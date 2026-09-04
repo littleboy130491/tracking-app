@@ -18,6 +18,13 @@ return [
         'red' => 'Jalur Merah (SPJM)',
     ],
 
+    'customs_responses' => [
+        'sppb' => 'SPPB',
+        'ap' => 'AP',
+        'spjk' => 'SPJK',
+        'spjm' => 'SPJM',
+    ],
+
     'milestone_states' => [
         'pending' => 'Pending',
         'in_progress' => 'In Progress',

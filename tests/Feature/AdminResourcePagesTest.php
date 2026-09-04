@@ -10,6 +10,7 @@ use App\Models\BillOfLading;
 use App\Models\Company;
 use App\Models\Container;
 use App\Models\User;
+use Awcodes\Curator\Resources\Media\MediaResource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -78,5 +79,26 @@ class AdminResourcePagesTest extends TestCase
             ->assertOk()
             ->assertSee('harbour-pic@example.com')
             ->assertSee('Harbour Consignee');
+    }
+
+    public function test_admin_can_open_curator_media_library_and_container_photo_pickers(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $container = Container::factory()->create([
+            'container_number' => 'TESTUCURATOR1',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(MediaResource::getUrl('index'))
+            ->assertOk()
+            ->assertSee('Media');
+
+        $this->actingAs($admin)
+            ->get(ContainerResource::getUrl('edit', ['record' => $container]))
+            ->assertOk()
+            ->assertSee('Photo of Door (Pintu)')
+            ->assertSee('Photo of Floor (Lantai)')
+            ->assertSee('Photo of EIR')
+            ->assertSee('Photo of Seal');
     }
 }

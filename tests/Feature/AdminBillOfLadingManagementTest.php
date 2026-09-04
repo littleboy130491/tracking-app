@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Containers\Schemas\ContainerExportFields;
 use App\Models\BillOfLading;
 use App\Models\Container;
 use App\Models\User;
+use Awcodes\Curator\Components\Forms\CuratorPicker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -153,6 +155,19 @@ class AdminBillOfLadingManagementTest extends TestCase
         $this->assertSame('Joko', $container->driver_name);
         $this->assertSame('FINISHED', $container->stuffingProgressLabel());
         $this->assertTrue($container->final_checked);
+    }
+
+    public function test_container_documentation_photos_use_curator_pickers(): void
+    {
+        $fields = collect(ContainerExportFields::make())
+            ->filter(fn ($field): bool => $field instanceof CuratorPicker)
+            ->values();
+
+        $this->assertCount(4, $fields);
+        $this->assertSame(
+            ['photo_door_id', 'photo_floor_id', 'photo_eir_id', 'photo_seal_id'],
+            $fields->map(fn (CuratorPicker $field): string => $field->getName())->all(),
+        );
     }
 
     public function test_admin_can_find_a_bl_by_bl_number(): void

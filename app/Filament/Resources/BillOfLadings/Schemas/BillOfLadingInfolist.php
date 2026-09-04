@@ -7,6 +7,7 @@ use App\Filament\Resources\Containers\ContainerResource;
 use App\Models\BillOfLading;
 use App\Models\Container;
 use Filament\Infolists\Components\IconEntry;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -116,6 +117,37 @@ class BillOfLadingInfolist
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
+                Section::make('Import Tracking Progress')
+                    ->visible(fn (?BillOfLading $record): bool => $record?->isImport() ?? false)
+                    ->schema([
+                        TextEntry::make('importer_name')->label('Importir Name')->placeholder('-'),
+                        IconEntry::make('document_checked')->label('Checking Document')->boolean(),
+                        IconEntry::make('draft_pib_checked')->label('Checking draft PIB')->boolean(),
+                        IconEntry::make('customer_confirmed')->label('Konfirmasi customer')->boolean(),
+                        IconEntry::make('pib_sent_to_customs')->label('PIB sent to Custom')->boolean(),
+                        IconEntry::make('billing_issued')->label('Billing issued')->boolean(),
+                        IconEntry::make('thc_paid')->label('Payment THC')->boolean(),
+                        IconEntry::make('do_released')->label('DO Release')->boolean(),
+                        IconEntry::make('billing_paid')->label('Payment Billing')->boolean(),
+                        TextEntry::make('customs_response')
+                            ->label('Response Billing')
+                            ->formatStateUsing(fn (?string $state): string => config("bl_workflows.customs_responses.{$state}", $state ?: '-'))
+                            ->placeholder('-'),
+                        TextEntry::make('departure_date')->label('Departure Date')->date()->placeholder('-'),
+                        TextEntry::make('eta_at')->label('Arrival Time / ETA')->dateTime()->placeholder('-'),
+                        TextEntry::make('terminal_name')->label('Terminal Name')->placeholder('-'),
+                        TextEntry::make('loading_date')->label('Date of Loading')->date()->placeholder('-'),
+                        TextEntry::make('loading_destination')->label('Loading Destination')->placeholder('-'),
+                        TextEntry::make('shipping_schedule')->label('Shipping Schedule')->placeholder('-')->columnSpanFull(),
+                        IconEntry::make('waiting_bahandle')->label('Waiting Bahandle')->boolean(),
+                        IconEntry::make('bahandle_paid')->label('Payment Bahandle')->boolean(),
+                        IconEntry::make('container_inspected')->label('Container Inspection')->boolean(),
+                        IconEntry::make('waiting_spjm_to_sppb')->label('Waiting SPJM to SPPB')->boolean(),
+                        TextEntry::make('on_the_way_factory_at')->label('On The Way Factory')->dateTime()->placeholder('-'),
+                        TextEntry::make('arrived_at_factory_at')->label('Arrived in Factory')->dateTime()->placeholder('-'),
+                        IconEntry::make('empty_container_returned')->label('Empty Container Returned')->boolean(),
+                    ])
+                    ->columns(3),
                 Section::make('Export Tracking Progress')
                     ->description('Shipment details for export Process 1–3.')
                     ->visible(fn (?BillOfLading $record): bool => $record?->isExport() ?? false)
@@ -150,6 +182,10 @@ class BillOfLadingInfolist
                                         : null),
                                 TextEntry::make('seal_number')->label('No. Seal')->placeholder('-'),
                                 TextEntry::make('container_type')->label('Type')->placeholder('-'),
+                                ImageEntry::make('photoDoor.url')->label('Pintu')->placeholder('-'),
+                                ImageEntry::make('photoFloor.url')->label('Lantai')->placeholder('-'),
+                                ImageEntry::make('photoEir.url')->label('EIR')->placeholder('-'),
+                                ImageEntry::make('photoSeal.url')->label('Seal')->placeholder('-'),
                                 TextEntry::make('driver_name')->label('Driver Name')->placeholder('-'),
                                 TextEntry::make('license_number')->label('No. License')->placeholder('-'),
                                 TextEntry::make('stuffing_progress')
@@ -157,6 +193,12 @@ class BillOfLadingInfolist
                                     ->formatStateUsing(fn (?string $state): string => Container::STUFFING_PROGRESS[$state] ?? '-')
                                     ->placeholder('-'),
                                 TextEntry::make('vgm_kg')->label('VGM (kg)')->placeholder('-'),
+                                TextEntry::make('gate_out_cy_at')->label('Gate out CY')->dateTime()->placeholder('-'),
+                                TextEntry::make('factory_loading_progress')
+                                    ->label('Loading in Factory')
+                                    ->formatStateUsing(fn (?string $state): string => Container::FACTORY_LOADING_PROGRESS[$state] ?? '-')
+                                    ->placeholder('-'),
+                                TextEntry::make('empty_return_depot')->label('Empty return depot')->placeholder('-'),
                                 IconEntry::make('final_checked')->label('Final Checking')->boolean(),
                                 TextEntry::make('package_count')->label('Packages')->placeholder('-'),
                                 TextEntry::make('gross_weight_kg')->label('Weight (kg)')->placeholder('-'),

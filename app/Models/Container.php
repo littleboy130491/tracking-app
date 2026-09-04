@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\LogsChanges;
+use Awcodes\Curator\Models\Media;
 use Database\Factories\ContainerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'bill_of_lading_id',
@@ -17,12 +17,16 @@ use Illuminate\Support\Facades\Storage;
     'driver_name',
     'license_number',
     'driver_tracking_url',
-    'photo_door_path',
-    'photo_floor_path',
-    'photo_eir_path',
-    'photo_seal_path',
+    'photo_door_id',
+    'photo_floor_id',
+    'photo_eir_id',
+    'photo_seal_id',
     'stuffing_progress',
+    'factory_loading_progress',
     'gate_in_cy_at',
+    'gate_out_cy_at',
+    'empty_return_depot',
+    'empty_return_at',
     'gate_in_pol',
     'vgm_kg',
     'final_checked',
@@ -47,6 +51,15 @@ class Container extends Model
         self::STUFFING_FINISHED => 'FINISHED',
     ];
 
+    public const FACTORY_LOADING_ON_PROCESS = 'on_process';
+
+    public const FACTORY_LOADING_FINAL = 'final_process';
+
+    public const FACTORY_LOADING_PROGRESS = [
+        self::FACTORY_LOADING_ON_PROCESS => 'ON PROCESS',
+        self::FACTORY_LOADING_FINAL => 'FINAL PROCESS',
+    ];
+
     protected static function booted(): void
     {
         static::created(fn (Container $container) => $container->recordAudit('container_created'));
@@ -62,6 +75,8 @@ class Container extends Model
             'vgm_kg' => 'decimal:3',
             'sort_order' => 'integer',
             'gate_in_cy_at' => 'datetime',
+            'gate_out_cy_at' => 'datetime',
+            'empty_return_at' => 'date',
             'final_checked_at' => 'date',
             'final_checked' => 'boolean',
         ];
@@ -75,6 +90,38 @@ class Container extends Model
         return $this->belongsTo(BillOfLading::class);
     }
 
+    /**
+     * @return BelongsTo<Media, $this>
+     */
+    public function photoDoor(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'photo_door_id');
+    }
+
+    /**
+     * @return BelongsTo<Media, $this>
+     */
+    public function photoFloor(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'photo_floor_id');
+    }
+
+    /**
+     * @return BelongsTo<Media, $this>
+     */
+    public function photoEir(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'photo_eir_id');
+    }
+
+    /**
+     * @return BelongsTo<Media, $this>
+     */
+    public function photoSeal(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'photo_seal_id');
+    }
+
     protected function changeLogSubject(): string
     {
         return 'container '.($this->container_number ?: '#'.$this->getKey());
@@ -85,9 +132,9 @@ class Container extends Model
         return self::STUFFING_PROGRESS[$this->stuffing_progress] ?? '-';
     }
 
-    public function photoUrl(?string $path): ?string
+    public function factoryLoadingProgressLabel(): string
     {
-        return filled($path) ? Storage::disk('public')->url($path) : null;
+        return self::FACTORY_LOADING_PROGRESS[$this->factory_loading_progress] ?? '-';
     }
 
     /**
@@ -96,10 +143,10 @@ class Container extends Model
     public function documentationPhotos(): array
     {
         return [
-            'Pintu' => $this->photoUrl($this->photo_door_path),
-            'Lantai' => $this->photoUrl($this->photo_floor_path),
-            'EIR' => $this->photoUrl($this->photo_eir_path),
-            'Seal' => $this->photoUrl($this->photo_seal_path),
+            'Pintu' => $this->photoDoor?->url,
+            'Lantai' => $this->photoFloor?->url,
+            'EIR' => $this->photoEir?->url,
+            'Seal' => $this->photoSeal?->url,
         ];
     }
 

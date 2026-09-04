@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\BillOfLadings\Schemas;
 
 use App\Filament\Resources\Containers\Schemas\ContainerExportFields;
+use App\Filament\Resources\Containers\Schemas\ContainerImportFields;
 use App\Models\BillOfLading;
 use App\Models\Company;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -51,6 +53,7 @@ class BillOfLadingForm
                                 $set('consignee_name', $company->name);
                                 $set('consignee_address', $company->address);
                                 $set('exporter_name', $company->name);
+                                $set('importer_name', $company->name);
                                 $set('shipper_name', $company->name);
                             }),
                         Select::make('shipment_type')
@@ -172,6 +175,7 @@ class BillOfLadingForm
                                     ->minValue(0)
                                     ->step(0.0001),
                                 ...ContainerExportFields::make(),
+                                ...ContainerImportFields::make(),
                             ])
                             ->columns(3)
                             ->defaultItems(0)
@@ -254,6 +258,129 @@ class BillOfLadingForm
                     ])
                     ->columns(2)
                     ->collapsible(),
+                Section::make('Import Process 1 — OUTPUT')
+                    ->description('Document Received.')
+                    ->visible(fn (Get $get, ?BillOfLading $record): bool => self::isImport($get, $record))
+                    ->schema([
+                        TextInput::make('importer_name')
+                            ->label('Importir Name (customer)')
+                            ->maxLength(255),
+                        Toggle::make('document_checked')
+                            ->label('Checking Document'),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+                Section::make('Import Process 2 — INPUT')
+                    ->description('Draft PIB through billing response. One AJU has one customs response.')
+                    ->visible(fn (Get $get, ?BillOfLading $record): bool => self::isImport($get, $record))
+                    ->schema([
+                        TextInput::make('carrier_name')
+                            ->label('Shipping Line')
+                            ->maxLength(255),
+                        Toggle::make('draft_pib_checked')
+                            ->label('Checking draft PIB to Importir'),
+                        TextInput::make('vessel_name')
+                            ->label('Vessel Name')
+                            ->maxLength(255),
+                        Toggle::make('customer_confirmed')
+                            ->label('Konfirmasi customer')
+                            ->helperText('Menunggu konfirmasi customer.'),
+                        Toggle::make('pib_sent_to_customs')
+                            ->label('Final Sending PIB to Custom (bea cukai)'),
+                        TextInput::make('voyage_number')
+                            ->label('Voyage')
+                            ->maxLength(255),
+                        Toggle::make('billing_issued')
+                            ->label('Status billing (sudah terbit)'),
+                        Toggle::make('thc_paid')
+                            ->label('Process payment THC'),
+                        TextInput::make('port_of_loading')
+                            ->label('Port of Loading')
+                            ->maxLength(255),
+                        Toggle::make('waiting_do_release')
+                            ->label('Waiting release DO'),
+                        DatePicker::make('departure_date')
+                            ->label('Departure Date'),
+                        Toggle::make('do_released')
+                            ->label('DO Release'),
+                        DatePicker::make('do_release_date')
+                            ->label('DO Release Date'),
+                        TextInput::make('port_of_discharge')
+                            ->label('Port of Discharging')
+                            ->maxLength(255),
+                        Toggle::make('billing_paid')
+                            ->label('Payment Billing'),
+                        DateTimePicker::make('eta_at')
+                            ->label('Arrival Time / ETA')
+                            ->seconds(false),
+                        Select::make('customs_response')
+                            ->label('Response Billing')
+                            ->helperText('1 nomor AJU = 1 response: SPPB / AP / SPJK / SPJM.')
+                            ->options(config('bl_workflows.customs_responses'))
+                            ->native(false)
+                            ->live(),
+                        Textarea::make('goods_description')
+                            ->label('Description of Goods')
+                            ->rows(2),
+                        TextInput::make('hs_code')
+                            ->label('HS Code')
+                            ->maxLength(255),
+                        TextInput::make('package_count')
+                            ->label('Packages')
+                            ->maxLength(255),
+                        TextInput::make('terminal_name')
+                            ->label('Terminal Name')
+                            ->maxLength(255),
+                        DatePicker::make('loading_date')
+                            ->label('Date of Loading'),
+                        TextInput::make('loading_destination')
+                            ->label('Loading Destination')
+                            ->maxLength(255),
+                        Textarea::make('shipping_schedule')
+                            ->label('Container Shipping Schedule')
+                            ->helperText('Shown on every import process.')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+                Section::make('Import Process 2 — SPJM extra steps')
+                    ->description('Additional steps only when Response Billing is SPJM.')
+                    ->visible(fn (Get $get, ?BillOfLading $record): bool => self::isImport($get, $record) && self::isSpjm($get, $record))
+                    ->schema([
+                        FileUpload::make('import_documents')
+                            ->label('Upload All Document')
+                            ->multiple()
+                            ->disk('public')
+                            ->directory('import-documents')
+                            ->visibility('public')
+                            ->columnSpanFull(),
+                        Toggle::make('waiting_bahandle')
+                            ->label('Waiting Process Bahandle'),
+                        Toggle::make('bahandle_paid')
+                            ->label('Payment Bahandle'),
+                        Toggle::make('container_inspected')
+                            ->label('Container Inspection'),
+                        Toggle::make('waiting_spjm_to_sppb')
+                            ->label('Waiting change status of SPJM to SPPB'),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+                Section::make('Import Process 3 — FINAL')
+                    ->description('Gate out from inbound terminal for delivery to consignee. Driver, license, gate out, and empty return follow each container.')
+                    ->visible(fn (Get $get, ?BillOfLading $record): bool => self::isImport($get, $record))
+                    ->schema([
+                        DateTimePicker::make('on_the_way_factory_at')
+                            ->label('Container On The Way Factory')
+                            ->seconds(false),
+                        DateTimePicker::make('arrived_at_factory_at')
+                            ->label('Container Arrived in Factory')
+                            ->seconds(false),
+                        Toggle::make('empty_container_returned')
+                            ->label('Empty Container Returned'),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
                 Section::make('Parties & Customer Update')
                     ->description('Additional customer-facing details. Status and milestones remain managed through workflow actions.')
                     ->schema([
@@ -291,5 +418,15 @@ class BillOfLadingForm
     private static function isExport(Get $get, ?BillOfLading $record): bool
     {
         return ($get('shipment_type') ?? $record?->shipment_type) === BillOfLading::TYPE_EXPORT;
+    }
+
+    private static function isImport(Get $get, ?BillOfLading $record): bool
+    {
+        return ($get('shipment_type') ?? $record?->shipment_type) === BillOfLading::TYPE_IMPORT;
+    }
+
+    private static function isSpjm(Get $get, ?BillOfLading $record): bool
+    {
+        return ($get('customs_response') ?? $record?->customs_response) === BillOfLading::CUSTOMS_RESPONSE_SPJM;
     }
 }

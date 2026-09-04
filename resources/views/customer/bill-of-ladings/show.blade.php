@@ -77,73 +77,8 @@
             @endif
 
             @if ($billOfLading->isImport())
-            @foreach ($timelineTracks as $track)
-                <section class="track-section">
-                    <div class="section-title">
-                        <p class="eyebrow">Pelacakan</p>
-                        <h2>{{ $track['title'] }}</h2>
-                    </div>
-
-                    <ol class="step-list {{ $laneClass }}">
-                        @foreach ($track['nodes'] as $index => $node)
-                            <li class="step-item state-{{ $node['state'] }}">
-                                <div class="step-rail" aria-hidden="true">
-                                    <span class="step-dot">
-                                        @if ($node['state'] === 'completed')
-                                            &#10003;
-                                        @else
-                                            {{ $index + 1 }}
-                                        @endif
-                                    </span>
-                                </div>
-                                <div class="step-body">
-                                    <strong>{{ $node['label'] }}</strong>
-                                    <span>
-                                        @if ($node['state'] === 'completed')
-                                            Selesai
-                                        @elseif ($node['state'] === 'in_progress')
-                                            Sedang diproses
-                                        @else
-                                            Mendatang
-                                        @endif
-                                    </span>
-                                </div>
-                            </li>
-                        @endforeach
-                    </ol>
-                </section>
-            @endforeach
+                @include('customer.bill-of-ladings.partials.import-progress')
             @endif
-
-            @if ($billOfLading->isImport())
-            <section class="detail-section">
-                <div class="section-title">
-                    <p class="eyebrow">Kargo</p>
-                    <h2>Detail pengiriman</h2>
-                </div>
-
-                <dl class="facts-grid">
-                    <div><dt>Perusahaan</dt><dd>{{ $billOfLading->company?->name ?: '-' }}</dd></div>
-                    <div><dt>Carrier</dt><dd>{{ $billOfLading->carrier_name ?: '-' }}</dd></div>
-                    <div>
-                        <dt>Kapal / voyage</dt>
-                        <dd>{{ $billOfLading->vessel_name ?: '-' }}{{ $billOfLading->voyage_number ? ' / '.$billOfLading->voyage_number : '' }}</dd>
-                    </div>
-                    <div><dt>Shipped on board</dt><dd>{{ $billOfLading->shipped_on_board_date?->locale('id')->translatedFormat('j M Y') ?: '-' }}</dd></div>
-                    <div><dt>Jumlah kemasan</dt><dd>{{ $billOfLading->package_count ?: '-' }}</dd></div>
-                    <div><dt>Berat kotor</dt><dd>{{ $billOfLading->gross_weight_kg ? number_format((float) $billOfLading->gross_weight_kg, 2).' kg' : '-' }}</dd></div>
-                    <div><dt>Volume</dt><dd>{{ $cbm ? number_format((float) $cbm, 2).' CBM' : '-' }}</dd></div>
-                    <div><dt>Kode HS</dt><dd>{{ $billOfLading->hs_code ?: '-' }}</dd></div>
-                    <div><dt>Tanggal input</dt><dd>{{ $billOfLading->input_date->locale('id')->translatedFormat('j M Y') }}</dd></div>
-                    <div class="fact-wide">
-                        <dt>Barang</dt>
-                        <dd>{{ $billOfLading->goods_description ?: $billOfLading->shipment_description }}</dd>
-                    </div>
-                    @if ($billOfLading->free_time_notes)
-                        <div class="fact-wide"><dt>Free time</dt><dd>{{ $billOfLading->free_time_notes }}</dd></div>
-                    @endif
-                </dl>
-            </section>
 
             @if ($hasRelatedParties)
                 <section class="detail-section">
@@ -233,7 +168,6 @@
                     </div>
                 @endif
             </section>
-            @endif
 
             <x-customer.logs :logs="$billOfLading->logs" />
         </main>
