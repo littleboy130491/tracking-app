@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BillOfLading;
+use App\Models\Container;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
@@ -116,6 +117,42 @@ class AdminBillOfLadingManagementTest extends TestCase
         $this->assertSame('00005002123420250702', $billOfLading->aju_number);
         $this->assertSame(BillOfLading::SHIPPING_METHOD_AIR, $billOfLading->shipping_method);
         $this->assertSame('Air Shipment', $billOfLading->shippingMethodLabel());
+    }
+
+    public function test_admin_can_save_export_tracking_fields_on_bl_and_container(): void
+    {
+        $billOfLading = BillOfLading::factory()->create([
+            'shipment_type' => BillOfLading::TYPE_EXPORT,
+        ]);
+        $container = $billOfLading->containers()->create([
+            'container_number' => 'EXPU5555555',
+            'sort_order' => 1,
+        ]);
+
+        $billOfLading->update([
+            'exporter_name' => 'PT Demo Exporter',
+            'booking_order_checked' => true,
+            'do_number' => 'DO-1',
+            'pickup_depot' => 'Tanjung Priok Depot',
+        ]);
+        $container->update([
+            'driver_name' => 'Joko',
+            'license_number' => 'B 1111 YY',
+            'stuffing_progress' => Container::STUFFING_FINISHED,
+            'vgm_kg' => 18000,
+            'final_checked' => true,
+            'final_checked_at' => '2026-06-10',
+        ]);
+
+        $billOfLading->refresh();
+        $container->refresh();
+
+        $this->assertTrue($billOfLading->isExport());
+        $this->assertSame('PT Demo Exporter', $billOfLading->exporter_name);
+        $this->assertTrue($billOfLading->booking_order_checked);
+        $this->assertSame('Joko', $container->driver_name);
+        $this->assertSame('FINISHED', $container->stuffingProgressLabel());
+        $this->assertTrue($container->final_checked);
     }
 
     public function test_admin_can_find_a_bl_by_bl_number(): void

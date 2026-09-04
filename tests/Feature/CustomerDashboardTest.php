@@ -352,6 +352,65 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('Created container');
     }
 
+    public function test_export_bl_detail_shows_three_process_tracking_progress(): void
+    {
+        $customer = User::factory()->customer()->create();
+        $billOfLading = BillOfLading::factory()->forUser($customer)->create([
+            'bl_number' => 'BL-EXPORT-TRACK',
+            'shipment_type' => BillOfLading::TYPE_EXPORT,
+            'exporter_name' => 'PT Example Exporter',
+            'booking_order_checked' => true,
+            'do_number' => 'DO-99',
+            'carrier_name' => 'Export Line',
+            'container_size' => "1x40'HC",
+            'port_of_discharge' => 'Singapore',
+            'pickup_depot' => 'Koja Depot',
+            'peb_npe_checked' => true,
+        ]);
+        Container::factory()->create([
+            'bill_of_lading_id' => $billOfLading->id,
+            'container_number' => 'EXPU9999999',
+            'seal_number' => 'SEALX1',
+            'driver_name' => 'Budi Driver',
+            'license_number' => 'B 9999 XX',
+            'stuffing_progress' => Container::STUFFING_ON_PROCESS,
+            'vgm_kg' => 21000,
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.bill-of-ladings.show', $billOfLading))
+            ->assertOk()
+            ->assertSee('Tracking Progress EXPORT')
+            ->assertSee('OUTPUT — Process 1')
+            ->assertSee('Document Received')
+            ->assertSee('PT Example Exporter')
+            ->assertSee('DO-99')
+            ->assertSee('Export Line')
+            ->assertSee('INPUT — Process 2')
+            ->assertSee('Koja Depot')
+            ->assertSee('EXPU9999999')
+            ->assertSee('Budi Driver')
+            ->assertSee('B 9999 XX')
+            ->assertSee('FINAL — Process 3')
+            ->assertSee('ON-PROCESS')
+            ->assertSee('21,000.000 kg')
+            ->assertDontSee('Proses impor');
+    }
+
+    public function test_import_bl_detail_does_not_show_export_process_sections(): void
+    {
+        $customer = User::factory()->customer()->create();
+        $billOfLading = BillOfLading::factory()->forUser($customer)->create([
+            'shipment_type' => BillOfLading::TYPE_IMPORT,
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.bill-of-ladings.show', $billOfLading))
+            ->assertOk()
+            ->assertSee('Proses impor')
+            ->assertDontSee('Tracking Progress EXPORT');
+    }
+
     public function test_customer_cannot_open_another_companys_container(): void
     {
         $customer = User::factory()->customer()->create();

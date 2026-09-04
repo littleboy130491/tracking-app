@@ -72,6 +72,11 @@
 
     <div class="tracking-layout">
         <main class="tracking-main">
+            @if ($billOfLading->isExport())
+                @include('customer.bill-of-ladings.partials.export-progress')
+            @endif
+
+            @if ($billOfLading->isImport())
             @foreach ($timelineTracks as $track)
                 <section class="track-section">
                     <div class="section-title">
@@ -108,7 +113,9 @@
                     </ol>
                 </section>
             @endforeach
+            @endif
 
+            @if ($billOfLading->isImport())
             <section class="detail-section">
                 <div class="section-title">
                     <p class="eyebrow">Kargo</p>
@@ -226,6 +233,7 @@
                     </div>
                 @endif
             </section>
+            @endif
 
             <x-customer.logs :logs="$billOfLading->logs" />
         </main>

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\BillOfLading;
 use App\Models\BillOfLadingUpdate;
 use App\Models\Company;
+use App\Models\Container;
 use App\Models\User;
 use App\Services\BillOfLadingWorkflowService;
 use Illuminate\Database\Seeder;
@@ -347,6 +348,19 @@ class DemoDataSeeder extends Seeder
             'carrier_name' => 'Demo Export Carrier',
             'shipment_description' => 'Synthetic export demo for PEB / NPE workflow',
             'shipper_name' => 'PT DOLPIN PUTRA SEJATI',
+            'exporter_name' => 'PT DOLPIN PUTRA SEJATI',
+            'booking_order_checked' => true,
+            'do_number' => 'DO-EXP-2026-001',
+            'depot_closing_at' => '2026-06-03 16:00:00',
+            'cy_closing_at' => '2026-06-04 18:00:00',
+            'container_size' => "1x20'GP",
+            'pickup_depot' => 'KOJA CONTAINER DEPOT',
+            'stuffing_date' => '2026-06-05',
+            'stuffing_destination' => 'Pabrik Cikarang',
+            'on_the_way_factory_at' => '2026-06-05 08:30:00',
+            'peb_npe_checked' => true,
+            'gate_in_cy_processed' => false,
+            'final_checking_notes' => 'Menunggu gate in CY.',
             'consignee_name' => 'DEMO OVERSEAS BUYER LTD',
             'consignee_address' => 'Singapore',
             'port_of_loading' => 'TANJUNG PRIOK',
@@ -363,7 +377,21 @@ class DemoDataSeeder extends Seeder
             'phase' => 'Input',
             'customer_note' => 'Export card creation in progress.',
         ], [
-            ['container_number' => 'EXPU1234567', 'seal_number' => 'EXPSEAL001', 'container_type' => "20'GP", 'package_count' => '200 BAGS', 'gross_weight_kg' => 5200, 'measurement_cbm' => 18.5, 'sort_order' => 1],
+            [
+                'container_number' => 'EXPU1234567',
+                'seal_number' => 'EXPSEAL001',
+                'container_type' => "20'GP",
+                'package_count' => '200 BAGS',
+                'gross_weight_kg' => 5200,
+                'measurement_cbm' => 18.5,
+                'driver_name' => 'Andi Saputra',
+                'license_number' => 'B 1234 EXP',
+                'stuffing_progress' => Container::STUFFING_ON_PROCESS,
+                'gate_in_pol' => 'TANJUNG PRIOK',
+                'vgm_kg' => 5450,
+                'final_checked' => false,
+                'sort_order' => 1,
+            ],
         ], $admin);
 
         $workflow->advanceToMilestone($export->fresh(), 'export_card', $admin->id);

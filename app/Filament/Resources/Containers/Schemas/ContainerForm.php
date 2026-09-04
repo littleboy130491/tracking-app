@@ -68,6 +68,11 @@ class ContainerForm
                             ->step(0.0001),
                     ])
                     ->columns(2),
+                Section::make('Export tracking')
+                    ->description('Photos, driver, stuffing, gate in CY, VGM, and final checking follow this container.')
+                    ->schema(ContainerExportFields::make())
+                    ->columns(2)
+                    ->collapsible(),
             ]);
     }
 }

@@ -4,6 +4,9 @@ namespace App\Filament\Resources\BillOfLadings\Schemas;
 
 use App\Filament\Infolists\LogsSection;
 use App\Filament\Resources\Containers\ContainerResource;
+use App\Models\BillOfLading;
+use App\Models\Container;
+use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -113,6 +116,26 @@ class BillOfLadingInfolist
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
+                Section::make('Export Tracking Progress')
+                    ->description('Shipment details for export Process 1–3.')
+                    ->visible(fn (?BillOfLading $record): bool => $record?->isExport() ?? false)
+                    ->schema([
+                        TextEntry::make('exporter_name')->label('Exporter Name')->placeholder('-'),
+                        IconEntry::make('booking_order_checked')->label('Checking Booking Order')->boolean(),
+                        TextEntry::make('do_number')->label('No. DO')->placeholder('-'),
+                        TextEntry::make('carrier_name')->label('Shipping Line')->placeholder('-'),
+                        TextEntry::make('depot_closing_at')->label('Closing time at Depo')->dateTime()->placeholder('-'),
+                        TextEntry::make('cy_closing_at')->label('Closing time at CY')->dateTime()->placeholder('-'),
+                        TextEntry::make('container_size')->label('Size Container')->placeholder('-'),
+                        TextEntry::make('pickup_depot')->label('Pick Up Depot')->placeholder('-'),
+                        TextEntry::make('stuffing_date')->label('Date of Stuffing')->date()->placeholder('-'),
+                        TextEntry::make('stuffing_destination')->label('Stuffing Destination')->placeholder('-'),
+                        TextEntry::make('on_the_way_factory_at')->label('On The Way Factory')->dateTime()->placeholder('-'),
+                        IconEntry::make('peb_npe_checked')->label('Checking PEB and NPE')->boolean(),
+                        IconEntry::make('gate_in_cy_processed')->label('Process Gate In CY')->boolean(),
+                        TextEntry::make('final_checking_notes')->label('Final Checking Details')->placeholder('-')->columnSpanFull(),
+                    ])
+                    ->columns(3),
                 Section::make('Containers')
                     ->description('Containers for this BL. Add or edit them with the repeater on the edit form.')
                     ->schema([
@@ -121,12 +144,20 @@ class BillOfLadingInfolist
                             ->placeholder('No containers recorded.')
                             ->schema([
                                 TextEntry::make('container_number')
-                                    ->label('Container')
+                                    ->label('No. Container')
                                     ->url(fn ($record): ?string => $record?->getKey()
                                         ? ContainerResource::getUrl('view', ['record' => $record])
                                         : null),
-                                TextEntry::make('seal_number')->label('Seal')->placeholder('-'),
+                                TextEntry::make('seal_number')->label('No. Seal')->placeholder('-'),
                                 TextEntry::make('container_type')->label('Type')->placeholder('-'),
+                                TextEntry::make('driver_name')->label('Driver Name')->placeholder('-'),
+                                TextEntry::make('license_number')->label('No. License')->placeholder('-'),
+                                TextEntry::make('stuffing_progress')
+                                    ->label('Stuffing')
+                                    ->formatStateUsing(fn (?string $state): string => Container::STUFFING_PROGRESS[$state] ?? '-')
+                                    ->placeholder('-'),
+                                TextEntry::make('vgm_kg')->label('VGM (kg)')->placeholder('-'),
+                                IconEntry::make('final_checked')->label('Final Checking')->boolean(),
                                 TextEntry::make('package_count')->label('Packages')->placeholder('-'),
                                 TextEntry::make('gross_weight_kg')->label('Weight (kg)')->placeholder('-'),
                                 TextEntry::make('measurement_cbm')->label('CBM')->placeholder('-'),
